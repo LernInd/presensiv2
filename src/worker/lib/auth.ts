@@ -17,6 +17,10 @@ function jwks(supabaseUrl: string) {
 	return set;
 }
 
+// Dibedakan dari token tidak sah: token kedaluwarsa boleh disegarkan memakai
+// refresh token, token palsu tidak.
+export class TokenKedaluwarsa extends GagalAuth {}
+
 export type IsiToken = JWTPayload & { sub: string; role?: string };
 
 export async function verifikasiToken(env: Env, token: string): Promise<IsiToken> {
@@ -31,17 +35,11 @@ export async function verifikasiToken(env: Env, token: string): Promise<IsiToken
 	} catch (galat) {
 		if (galat instanceof GagalAuth) throw galat;
 		if (galat instanceof errors.JWTExpired) {
-			throw new GagalAuth(401, "Sesi berakhir. Silakan masuk kembali.");
+			throw new TokenKedaluwarsa(401, "Sesi berakhir. Silakan masuk kembali.");
 		}
 		if (galat instanceof errors.JWKSTimeout || galat instanceof TypeError) {
 			throw new GagalAuth(503, "Tidak bisa mengambil kunci publik Supabase");
 		}
 		throw new GagalAuth(401, "Token tidak sah");
 	}
-}
-
-export function tokenDariHeader(nilai: string | undefined): string | null {
-	if (!nilai?.startsWith("Bearer ")) return null;
-	const token = nilai.slice(7).trim();
-	return token || null;
 }
