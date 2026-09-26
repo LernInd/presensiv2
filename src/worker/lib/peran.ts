@@ -52,3 +52,23 @@ export function lembagaUntukPeran(peran: string[], baris: BarisPeranLembaga[]): 
 	}
 	return [...perLembaga.values()];
 }
+
+// Satu-satunya peran yang boleh memakai aplikasi presensi. Peran lain
+// (kesehatan, perizinan, admin_kegiatan, …) ditolak saat login dengan pesan
+// yang sama seperti kredensial salah.
+export const PERAN_PRESENSI = {
+	gurusmk: { sebutan: "Guru SMK", tingkat: "guru" },
+	gurumts: { sebutan: "Guru MTs", tingkat: "guru" },
+	guruma: { sebutan: "Guru MA", tingkat: "guru" },
+	gurudiniyah: { sebutan: "Guru Diniyah", tingkat: "guru" },
+	adminpresensismk: { sebutan: "Admin Presensi SMK", tingkat: "admin" },
+	adminpresensimts: { sebutan: "Admin Presensi MTs", tingkat: "admin" },
+	adminpresensima: { sebutan: "Admin Presensi MA", tingkat: "admin" },
+	adminpresensimadin: { sebutan: "Admin Presensi Madin", tingkat: "admin" },
+} as const satisfies Record<string, { sebutan: string; tingkat: Tingkat }>;
+
+export type KodePeranPresensi = keyof typeof PERAN_PRESENSI;
+
+export function peranPresensi(kode: string): kode is KodePeranPresensi {
+	return Object.hasOwn(PERAN_PRESENSI, kode);
+}

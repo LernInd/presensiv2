@@ -5,25 +5,34 @@ Menghubungkan dua database yang sudah ada:
 
 | Database | Platform | Isi | Cara diakses |
 | --- | --- | --- | --- |
-| **activity-db** | Supabase (Postgres + Auth) | pengguna, peran, lembaga, kelas, santri | Login via Supabase Auth; worker membaca lewat PostgREST **memakai token pengguna** (RLS tetap berlaku) |
+| **activity-db** | Supabase (Postgres + Auth) | pengguna, peran, lembaga, kelas, santri | Login lewat worker ke Supabase Auth; worker membaca PostgREST **memakai token pengguna** (RLS tetap berlaku) |
 | **presensi-db** | Cloudflare D1 | presensi harian, sesi, jadwal, pengaturan, `peran_lembaga` | Hanya dari worker, lewat binding `DB` dengan prepared statement |
 
 ## Alur keamanan
 
 ```
-Browser ──login (publishable key)──▶ Supabase Auth
-   │ Authorization: Bearer <access_token>   (satu origin, tanpa CORS)
-   ▼
-Worker /api/*
-  1. verifikasi JWT: ES256, JWKS Supabase, issuer + audience + exp
-  2. profil & peran dari v_pengguna (token pengguna → RLS)
-  3. peran → lembaga dari D1 `peran_lembaga`; header X-Peran hanya mempersempit
-  4. query D1 dengan .bind(), jawaban selalu Cache-Control: no-store
+Browser ──POST /api/masuk {username, password}──▶ Worker
+  1. Origin wajib sama, JSON ≤ 1 KB, hanya field username & password
+  2. Rate limit: 5/10 dtk per IP (≈1 per 2 dtk) dan 5/60 dtk per username
+  3. Validasi daftar-putih (username ^[a-z0-9][a-z0-9._-]{2,29}$, sandi 6–72)
+  4. Login ke Supabase Auth → cek akun aktif + peran presensi
+  5. Gagal apa pun → 401 "Username atau kata sandi salah", ditahan ≥1 dtk
+  6. Berhasil → cookie __Host-pv2_at / __Host-pv2_rt
+     (HttpOnly, Secure, SameSite=Strict, tanpa Max-Age → hilang saat browser ditutup)
+Permintaan berikutnya: cookie → verifikasi JWT (ES256/JWKS) → token kedaluwarsa
+disegarkan otomatis di server → profil & peran (RLS) → D1 dengan .bind()
 ```
 
-- Tidak ada `service_role` key di mana pun.
-- Browser tidak pernah menyentuh D1 secara langsung.
-- Akun `is_active = false` ditolak.
+- **Peran yang boleh masuk** (`src/worker/lib/peran.ts` → `PERAN_PRESENSI`):
+  `gurusmk`, `gurumts`, `guruma`, `gurudiniyah`, `adminpresensismk`,
+  `adminpresensimts`, `adminpresensima`, `adminpresensimadin`. Peran lain
+  ditolak dengan pesan yang sama seperti kredensial salah, dan sesi yang
+  sempat terbit langsung dicabut. Aturan ini juga ditegakkan di setiap rute
+  API, jadi token dari login langsung ke Supabase pun tidak bisa dipakai.
+- Token **tidak pernah** sampai ke JavaScript, localStorage, atau sessionStorage.
+- Tidak ada `service_role` key; browser tidak pernah menyentuh D1.
+- Tidak ada SQL yang dirakit dari input: D1 memakai prepared statement,
+  PostgREST menerima ID tervalidasi UUID, kredensial dikirim sebagai JSON.
 - Schema presensi-db **dipakai bersama** worker `presensi-api`, `perizinan-api`, `kesehatan-api` — jangan diubah tanpa koordinasi.
 
 ## Variables & Secrets (wajib)
@@ -47,8 +56,11 @@ npx wrangler secret put LOGIN_EMAIL_DOMAIN
 ```
 
 `wrangler.json` memakai `"keep_vars": true` agar `wrangler deploy` tidak
-menghapus variabel yang diset di dashboard. Frontend membaca nilai publiknya
-saat runtime dari `GET /api/config`, jadi tidak perlu `VITE_*` saat build.
+menghapus variabel yang diset di dashboard. Frontend tidak membutuhkan
+variabel apa pun (tidak ada `VITE_*`).
+
+Rate limiting memakai binding `RL_LOGIN_IP` dan `RL_LOGIN_USER` (lihat
+`wrangler.json`, `namespace_id` 2001/2002 harus unik di akun Cloudflare).
 
 ## Pengembangan lokal
 
@@ -66,28 +78,35 @@ presensi-db produksi. Isi data uji lokal dengan `npx wrangler d1 execute presens
 
 | Endpoint | Auth | Keterangan |
 | --- | --- | --- |
-| `GET /api/config` | publik | URL Supabase, publishable key, domain email login, zona |
+| `GET /api/config` | publik | zona waktu |
 | `GET /api/sehat` | publik | cek koneksi D1 |
-| `GET /api/saya` | Bearer | profil, peran, lembaga yang boleh diakses, tingkat |
+| `POST /api/masuk` | publik (rate limited) | login, memasang cookie sesi, mengembalikan profil + peran |
+| `POST /api/keluar` | cookie | mencabut sesi di Supabase + menghapus cookie |
+| `GET /api/saya` | cookie | profil, daftar peran presensi + lembaga |
 
 Rute baru yang butuh login cukup didaftarkan setelah `app.use("*", pemanggil)`
-di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`bolehLembaga`,
-`bolehAtur`, `lembagaBoleh`, `tingkat`, `token`).
+di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`peran`, `lembagaBoleh`,
+`tingkat`, `bolehLembaga()`, `bolehAtur()`) dan `c.get("token")` untuk PostgREST.
 
 ## Struktur
 
 ```
 src/worker/
-  index.ts                 rute Hono, header keamanan, penanganan galat
-  middleware/pemanggil.ts  autentikasi + otorisasi per permintaan
+  index.ts                 header keamanan, cek Origin, rute, penanganan galat
+  routes/masuk.ts          /masuk & /keluar: validasi, rate limit, jeda, cookie
+  middleware/pemanggil.ts  sesi cookie → verifikasi/segarkan token → orang
+  lib/pengguna.ts          muat profil + peran presensi + lembaga
+  lib/peran.ts             PERAN_PRESENSI, tingkat, pemetaan lembaga
+  lib/validasi.ts          validasi daftar-putih kredensial
   lib/auth.ts              verifikasi JWT Supabase (jose + JWKS)
-  lib/supabase.ts          akses PostgREST dengan token pengguna
-  lib/peran.ts             tingkat peran & pemetaan lembaga
-  lib/env.ts, galat.ts     validasi env, kelas galat
+  lib/authSupabase.ts      login / refresh / logout ke Supabase Auth
+  lib/sesi.ts              cookie HttpOnly sesi
+  lib/supabase.ts          PostgREST dengan token pengguna
 src/react-app/
-  lib/supabase.ts          klien Supabase dari /api/config, masuk/keluar
-  lib/api.ts               fetch ke /api dengan Authorization + X-Peran
-  App.tsx                  login & beranda (bukti koneksi)
+  components/FormMasuk.tsx form login, validasi per kolom, jeda 2 dtk, pop-up
+  components/Dialog.tsx    pop-up <dialog> native
+  components/Beranda.tsx   profil + daftar peran
+  lib/api.ts, validasi.ts  fetch same-origin, aturan validasi (cermin server)
 ```
 
 ## Deploy

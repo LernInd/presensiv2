@@ -2,29 +2,29 @@ import { Hono } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import { periksaEnv, zona } from "./lib/env";
 import { GagalTerkendali } from "./lib/galat";
-import { urlBerkas } from "./lib/supabase";
+import { ringkasOrang } from "./lib/pengguna";
 import { pemanggil, type AppEnv } from "./middleware/pemanggil";
+import { masuk } from "./routes/masuk";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
 app.use(secureHeaders());
 app.use(async (c, next) => {
 	periksaEnv(c.env);
+	// Perlindungan CSRF lapis kedua (lapis pertama: cookie SameSite=Strict):
+	// permintaan yang mengubah keadaan wajib berasal dari origin aplikasi ini.
+	if (c.req.method !== "GET" && c.req.method !== "HEAD") {
+		const asal = c.req.header("Origin");
+		if (!asal || asal !== new URL(c.req.url).origin) {
+			throw new GagalTerkendali(403, "Asal permintaan tidak diizinkan");
+		}
+	}
 	await next();
-	// Jawaban API bergantung pada token, bukan URL: jangan pernah di-cache.
+	// Jawaban API bergantung pada sesi, bukan URL: jangan pernah di-cache.
 	c.header("Cache-Control", "no-store");
 });
 
-// Konfigurasi publik untuk frontend, dibaca dari Variables and Secrets di
-// runtime. Hanya nilai yang memang aman untuk browser.
-app.get("/config", (c) =>
-	c.json({
-		supabaseUrl: c.env.SUPABASE_URL,
-		supabasePublishableKey: c.env.SUPABASE_PUBLISHABLE_KEY,
-		loginEmailDomain: c.env.LOGIN_EMAIL_DOMAIN,
-		zona: zona(c.env),
-	}),
-);
+app.get("/config", (c) => c.json({ zona: zona(c.env) }));
 
 app.get("/sehat", async (c) => {
 	const d1 = await c.env.DB.prepare("select 1 as ok")
@@ -34,25 +34,12 @@ app.get("/sehat", async (c) => {
 	return c.json({ ok: d1, d1, waktu: new Date().toISOString() }, d1 ? 200 : 503);
 });
 
+app.route("/", masuk);
+
 // Semua rute di bawah ini wajib login.
 app.use("*", pemanggil);
 
-app.get("/saya", (c) => {
-	const orang = c.get("orang");
-	return c.json({
-		uid: orang.uid,
-		username: orang.username,
-		nama: orang.nama,
-		jenis_kelamin: orang.jenisKelamin,
-		foto_url: urlBerkas(c.env, "avatars", orang.fotoPath),
-		peran: orang.peran,
-		peran_aktif: orang.peranAktif,
-		peran_tersedia: orang.peranTersedia,
-		lembaga: orang.lembagaBoleh,
-		boleh_atur: orang.adaYangDiatur,
-		tingkat: orang.tingkat,
-	});
-});
+app.get("/saya", (c) => c.json(ringkasOrang(c.env, c.get("orang"))));
 
 app.notFound((c) => c.json({ error: "Jalur tidak dikenal" }, 404));
 
