@@ -91,15 +91,22 @@ export function FormMasuk({ onMasuk }: { onMasuk: (saya: Saya) => void }) {
 	const tampilGalat = (k: keyof GalatKolom) => (disentuh[k] ? galat[k] : undefined);
 
 	return (
-		<main className="halaman halaman--tengah">
-			<form className="kartu" onSubmit={kirim} noValidate>
-				<header className="kepala">
-					<img src="/icon.svg" alt="" width={44} height={44} />
+		<main className="halaman--login">
+			<div className="masuk-shell">
+				<aside className="masuk-shell__marca" aria-hidden="true">
+					<img src="/icon.svg" alt="" width={40} height={40} />
 					<h1>Presensi</h1>
-					<p className="redup">Masuk dengan akun guru atau admin presensi</p>
-				</header>
+					<p>Sistem presensi digital untuk guru dan admin madrasah.</p>
+				</aside>
 
-				<div className="kolom">
+				<form className="masuk-shell__form" onSubmit={kirim} noValidate>
+					<div className="masuk-shell__form-kepala">
+						<img src="/icon.svg" alt="" width={36} height={36} />
+						<h1>Presensi</h1>
+					</div>
+					<p className="redup">Masuk dengan akun guru atau admin presensi</p>
+
+					<div className="kolom">
 					<label htmlFor="username">Username</label>
 					<input
 						id="username"
@@ -187,8 +194,9 @@ export function FormMasuk({ onMasuk }: { onMasuk: (saya: Saya) => void }) {
 					)}
 				</button>
 			</form>
+		</div>
 
-			<Dialog
+		<Dialog
 				terbuka={popup !== null}
 				judul={popup?.judul ?? ""}
 				nada={popup?.nada}
