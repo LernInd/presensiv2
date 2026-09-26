@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Beranda } from "./components/Beranda";
 import { FormMasuk } from "./components/FormMasuk";
 import { PilihPeran } from "./components/PilihPeran";
-import { GagalApi, setPeranAktif, saya as ambilSaya, type Saya } from "./lib/api";
+import { Topbar } from "./components/Topbar";
+import { GagalApi, keluar, setPeranAktif, saya as ambilSaya, type Saya } from "./lib/api";
 
 type Keadaan =
 	| { tahap: "memuat" }
@@ -23,6 +24,7 @@ function keadaanSetelahMasuk(saya: Saya): Keadaan {
 
 function App() {
 	const [keadaan, setKeadaan] = useState<Keadaan>({ tahap: "memuat" });
+	const [keluarProses, setKeluarProses] = useState(false);
 
 	// Sesi hanya ada di cookie server. Bila cookie sudah hilang (browser
 	// ditutup), /saya menjawab 401 dan pengguna kembali ke form login.
@@ -36,6 +38,17 @@ function App() {
 		);
 	}, []);
 
+	async function klikKeluar() {
+		setKeluarProses(true);
+		try {
+			await keluar();
+		} finally {
+			setPeranAktif(null);
+			setKeluarProses(false);
+			setKeadaan({ tahap: "masuk" });
+		}
+	}
+
 	if (keadaan.tahap === "memuat") {
 		return (
 			<main className="halaman halaman--tengah" aria-busy="true">
@@ -48,22 +61,24 @@ function App() {
 		return <FormMasuk onMasuk={(saya) => setKeadaan(keadaanSetelahMasuk(saya))} />;
 	}
 
-	if (keadaan.tahap === "pilihPeran") {
-		const { saya } = keadaan;
-		return <PilihPeran saya={saya} onPilih={(kode) => setKeadaan({ tahap: "beranda", saya, peranAktif: kode })} />;
-	}
-
-	const { saya, peranAktif } = keadaan;
+	// pilihPeran & beranda berbagi chrome aplikasi (topbar dengan identitas
+	// pengguna dan aksi keluar) — hanya konten di bawahnya yang berbeda.
+	const { saya } = keadaan;
 	return (
-		<Beranda
-			saya={saya}
-			peranAktif={peranAktif}
-			onGantiPeran={() => setKeadaan({ tahap: "pilihPeran", saya })}
-			onKeluar={() => {
-				setPeranAktif(null);
-				setKeadaan({ tahap: "masuk" });
-			}}
-		/>
+		<div className="app-shell">
+			<Topbar nama={saya.nama} fotoUrl={saya.foto_url} onKeluar={klikKeluar} proses={keluarProses} />
+			<main className="app-shell__konten">
+				{keadaan.tahap === "pilihPeran" ? (
+					<PilihPeran saya={saya} onPilih={(kode) => setKeadaan({ tahap: "beranda", saya, peranAktif: kode })} />
+				) : (
+					<Beranda
+						saya={saya}
+						peranAktif={keadaan.peranAktif}
+						onGantiPeran={() => setKeadaan({ tahap: "pilihPeran", saya })}
+					/>
+				)}
+			</main>
+		</div>
 	);
 }
 

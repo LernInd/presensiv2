@@ -12,7 +12,10 @@
 	--peringatan: #b45309;
 	--peringatan-lembut: #fef3e2;
 	--bayang: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 16px rgb(15 23 42 / 6%);
-	--radius: 14px;
+	--radius: 8px;
+	--lebar-masuk: 880px;
+	--lebar-konten: 880px;
+	--lebar-sempit: 560px;
 
 	color-scheme: light dark;
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -74,7 +77,7 @@ h2 {
 	font-size: 0.9375rem;
 }
 
-/* Tata letak */
+/* Tata letak: layar penuh berdiri sendiri (loading, dulu juga login) */
 .halaman {
 	width: 100%;
 	max-width: 420px;
@@ -100,23 +103,128 @@ h2 {
 	border: 1px solid var(--garis);
 	border-radius: var(--radius);
 	box-shadow: var(--bayang);
-	padding: 24px 20px;
+	padding: 24px;
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
 }
 
-.kepala {
+/* Chrome aplikasi (tahap pilihPeran/beranda): bar atas + area konten yang
+   melebar sesuai layar, bukan satu kartu sempit yang mengambang. */
+.app-shell {
+	min-height: 100dvh;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	gap: 6px;
-	text-align: center;
-	margin-bottom: 4px;
+	background: var(--latar);
 }
 
-.kepala img {
-	margin-bottom: 6px;
+.app-shell__konten {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+
+.topbar {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding: 12px max(20px, env(safe-area-inset-top)) 12px 20px;
+	background: var(--permukaan);
+	border-bottom: 1px solid var(--garis);
+}
+
+.topbar__brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 700;
+	font-size: 1.0625rem;
+}
+
+.topbar__akun {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.topbar .avatar {
+	width: 32px;
+	height: 32px;
+	font-size: 0.8125rem;
+}
+
+.topbar__nama {
+	font-weight: 600;
+	font-size: 0.9375rem;
+	max-width: 180px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.topbar__keluar {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 14px;
+	font: inherit;
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--redup);
+	background: transparent;
+	border: 1px solid var(--garis);
+	border-radius: var(--radius);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: color 0.15s, border-color 0.15s;
+}
+
+.topbar__keluar:hover:not(:disabled) {
+	color: var(--galat);
+	border-color: var(--galat);
+}
+
+.topbar__keluar:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--utama) 40%, transparent);
+	outline-offset: 2px;
+}
+
+.topbar__keluar:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+	.topbar__nama {
+		display: none;
+	}
+}
+
+/* Kontainer konten di dalam app-shell: melebar secara sistematis mengikuti
+   layar, bukan kartu ponsel yang diregangkan. */
+.container {
+	width: 100%;
+	max-width: var(--lebar-konten);
+	margin: 0 auto;
+	padding: 28px 20px 40px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.container--sempit {
+	max-width: var(--lebar-sempit);
+}
+
+.halaman-judul {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
 }
 
 /* Form */
@@ -237,6 +345,82 @@ input:disabled {
 	border-color: transparent;
 }
 
+/* Login: panel klasik terbagi dua di layar lebar (mis. Okta/GitHub
+   Enterprise) — kolom brand + kolom form dalam satu kotak bertepi, bukan
+   kartu ponsel yang diregangkan. */
+.halaman--login {
+	min-height: 100dvh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+}
+
+.masuk-shell {
+	width: 100%;
+	max-width: var(--lebar-masuk);
+	background: var(--permukaan);
+	border: 1px solid var(--garis);
+	border-radius: var(--radius);
+	box-shadow: var(--bayang);
+	overflow: hidden;
+	display: grid;
+	grid-template-columns: 1fr;
+}
+
+.masuk-shell__marca {
+	display: none;
+	flex-direction: column;
+	justify-content: center;
+	gap: 12px;
+	padding: 48px 40px;
+	color: var(--utama-teks);
+	background: linear-gradient(160deg, var(--utama), color-mix(in srgb, var(--utama) 65%, black));
+}
+
+.masuk-shell__marca h1,
+.masuk-shell__marca p {
+	color: inherit;
+}
+
+.masuk-shell__marca p {
+	opacity: 0.85;
+}
+
+.masuk-shell__form {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 32px 24px;
+}
+
+.masuk-shell__form-kepala {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	text-align: center;
+}
+
+@media (min-width: 860px) {
+	.masuk-shell {
+		grid-template-columns: 1fr 1.15fr;
+	}
+
+	.masuk-shell__marca {
+		display: flex;
+	}
+
+	.masuk-shell__form-kepala {
+		display: none;
+	}
+
+	.masuk-shell__form {
+		padding: 48px 56px;
+		justify-content: center;
+	}
+}
+
 .putar {
 	width: 18px;
 	height: 18px;
@@ -308,23 +492,7 @@ input:disabled {
 	margin-bottom: 8px;
 }
 
-/* Beranda */
-.profil {
-	flex-direction: row;
-	align-items: center;
-	gap: 14px;
-	padding: 16px 18px;
-}
-
-.profil__teks {
-	min-width: 0;
-}
-
-.profil__teks h1 {
-	font-size: 1.125rem;
-	overflow-wrap: anywhere;
-}
-
+/* Avatar (Topbar) */
 .avatar {
 	flex: none;
 	display: grid;
@@ -338,13 +506,20 @@ input:disabled {
 	object-fit: cover;
 }
 
-.daftar-peran {
+/* Pilih Peran: grid box yang sistematis — jumlah kolom mengikuti lebar
+   layar secara otomatis (1 di ponsel, 2–3 di layar lebar), bukan daftar
+   bertumpuk ala ponsel. */
+.grid-peran {
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 16px;
+}
+
+.grid-peran > li {
+	margin: 0;
 }
 
 .peran {
@@ -354,33 +529,27 @@ input:disabled {
 	align-items: center;
 	gap: 2px 12px;
 	width: 100%;
-	min-height: 56px;
-	padding: 12px 14px;
+	height: 100%;
+	min-height: 64px;
+	padding: 16px;
 	font: inherit;
 	text-align: left;
 	color: var(--teks);
 	background: var(--permukaan);
 	border: 1px solid var(--garis);
-	border-radius: 10px;
+	border-radius: var(--radius);
 	cursor: pointer;
 	touch-action: manipulation;
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.peran:hover {
+	border-color: var(--utama);
+	box-shadow: var(--bayang);
 }
 
 .peran:focus-visible {
 	outline: 3px solid color-mix(in srgb, var(--utama) 40%, transparent);
-}
-
-.peran[aria-checked="true"] {
-	border-color: var(--utama);
-	background: var(--utama-lembut);
-}
-
-/* Kartu peran aktif di Beranda: tampilan sama seperti peran terpilih, tapi
-   bukan tombol — tidak bisa ditekan, jadi tanpa kursor pointer. */
-.peran--tampil {
-	cursor: default;
-	border-color: var(--utama);
-	background: var(--utama-lembut);
 }
 
 .peran__nama {
@@ -406,6 +575,42 @@ input:disabled {
 .lencana--admin {
 	color: var(--peringatan);
 	background: var(--peringatan-lembut);
+}
+
+/* Beranda: panel ringkasan bergaya baris label/nilai (klasik, seperti
+   halaman detail akun pada aplikasi enterprise). */
+.info-baris {
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.info-baris__item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	padding-bottom: 12px;
+	border-bottom: 1px solid var(--garis);
+}
+
+.info-baris__item:last-child {
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.info-baris__item dt {
+	margin: 0;
+	color: var(--redup);
+	font-size: 0.875rem;
+	font-weight: 600;
+}
+
+.info-baris__item dd {
+	margin: 0;
+	font-weight: 600;
+	text-align: right;
 }
 
 @media (prefers-reduced-motion: reduce) {

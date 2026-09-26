@@ -1,63 +1,46 @@
-import { useState } from "react";
-import { keluar, type Saya } from "../lib/api";
+import type { Saya } from "../lib/api";
 
+// "Keluar" hidup di Topbar (lihat App.tsx), tidak diulang di badan halaman.
+// Ganti peran tetap di sini karena itu aksi milik konteks halaman ini.
 export function Beranda({
 	saya,
 	peranAktif,
 	onGantiPeran,
-	onKeluar,
 }: {
 	saya: Saya;
 	peranAktif: string | null;
 	onGantiPeran: () => void;
-	onKeluar: () => void;
 }) {
-	const [proses, setProses] = useState(false);
 	const aktif = saya.peran.find((p) => p.kode === peranAktif) ?? saya.peran[0] ?? null;
 
-	async function klikKeluar() {
-		setProses(true);
-		try {
-			await keluar();
-		} finally {
-			onKeluar();
-		}
-	}
-
-	const inisial = saya.nama
-		.split(/\s+/)
-		.slice(0, 2)
-		.map((k) => k[0]?.toUpperCase() ?? "")
-		.join("");
-
 	return (
-		<main className="halaman">
-			<header className="profil kartu">
-				{saya.foto_url ? (
-					<img className="avatar" src={saya.foto_url} alt="" width={48} height={48} />
-				) : (
-					<div className="avatar" aria-hidden="true">
-						{inisial}
-					</div>
-				)}
-				<div className="profil__teks">
-					<h1>{saya.nama}</h1>
-					<p className="redup">@{saya.username}</p>
-				</div>
-			</header>
+		<div className="container container--sempit">
+			<div className="halaman-judul">
+				<h1>Beranda</h1>
+				<p className="redup">Peran yang sedang aktif untuk sesi ini.</p>
+			</div>
 
 			{aktif && (
 				<section className="kartu" aria-labelledby="judul-aktif">
 					<h2 id="judul-aktif">Peran aktif</h2>
-					<div className="peran peran--tampil">
-						<span className="peran__nama">{aktif.sebutan}</span>
-						<span className="peran__lembaga redup">
-							{aktif.lembaga.length > 0 ? aktif.lembaga.map((l) => l.nama).join(", ") : "Lembaga belum diatur"}
-						</span>
-						<span className={`lencana lencana--${aktif.tingkat}`}>
-							{aktif.tingkat === "admin" ? "Admin" : "Guru"}
-						</span>
-					</div>
+					<dl className="info-baris">
+						<div className="info-baris__item">
+							<dt>Peran</dt>
+							<dd>{aktif.sebutan}</dd>
+						</div>
+						<div className="info-baris__item">
+							<dt>Lembaga</dt>
+							<dd>{aktif.lembaga.length > 0 ? aktif.lembaga.map((l) => l.nama).join(", ") : "Belum diatur"}</dd>
+						</div>
+						<div className="info-baris__item">
+							<dt>Tingkat</dt>
+							<dd>
+								<span className={`lencana lencana--${aktif.tingkat}`}>
+									{aktif.tingkat === "admin" ? "Admin" : "Guru"}
+								</span>
+							</dd>
+						</div>
+					</dl>
 					{saya.peran.length > 1 && (
 						<button type="button" className="tombol tombol--sekunder" onClick={onGantiPeran}>
 							Ganti peran
@@ -65,10 +48,6 @@ export function Beranda({
 					)}
 				</section>
 			)}
-
-			<button type="button" className="tombol tombol--garis" onClick={klikKeluar} disabled={proses}>
-				{proses ? "Keluar…" : "Keluar"}
-			</button>
-		</main>
+		</div>
 	);
 }
