@@ -1,0 +1,7 @@
+# Salin ke .dev.vars untuk pengembangan lokal (.dev.vars tidak ikut di-commit).
+# Di produksi, isi nilai-nilai ini di Cloudflare Dashboard:
+#   Workers & Pages → presensiv2 → Settings → Variables and Secrets
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
+LOGIN_EMAIL_DOMAIN=admin-kegiatan.internal
+ZONA=Asia/Jakarta
