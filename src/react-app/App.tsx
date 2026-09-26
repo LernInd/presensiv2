@@ -1,65 +1,107 @@
-// src/App.tsx
-
-import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import cloudflareLogo from "./assets/Cloudflare_Logo.svg";
-import honoLogo from "./assets/hono.svg";
+import { useEffect, useState, type FormEvent } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { api, type Saya } from "./lib/api";
+import { getSupabase, keluar, masuk } from "./lib/supabase";
 import "./App.css";
 
 function App() {
-	const [count, setCount] = useState(0);
-	const [name, setName] = useState("unknown");
+	const [siap, setSiap] = useState(false);
+	const [sesi, setSesi] = useState<Session | null>(null);
+	const [galatAwal, setGalatAwal] = useState<string | null>(null);
+
+	useEffect(() => {
+		let batal: (() => void) | undefined;
+		getSupabase()
+			.then(async (supabase) => {
+				const { data } = await supabase.auth.getSession();
+				setSesi(data.session);
+				const { data: langganan } = supabase.auth.onAuthStateChange((_e, s) => setSesi(s));
+				batal = () => langganan.subscription.unsubscribe();
+			})
+			.catch((g: Error) => setGalatAwal(g.message))
+			.finally(() => setSiap(true));
+		return () => batal?.();
+	}, []);
+
+	if (!siap) return <p>Memuat…</p>;
+	if (galatAwal) return <p className="galat">{galatAwal}</p>;
+	return sesi ? <Beranda /> : <FormMasuk />;
+}
+
+function FormMasuk() {
+	const [username, setUsername] = useState("");
+	const [password, setPassword] = useState("");
+	const [galat, setGalat] = useState<string | null>(null);
+	const [proses, setProses] = useState(false);
+
+	async function kirim(e: FormEvent) {
+		e.preventDefault();
+		setProses(true);
+		setGalat(null);
+		try {
+			await masuk(username, password);
+		} catch (g) {
+			setGalat((g as Error).message);
+		} finally {
+			setProses(false);
+		}
+	}
 
 	return (
-		<>
-			<div>
-				<a href="https://vite.dev" target="_blank">
-					<img src={viteLogo} className="logo" alt="Vite logo" />
-				</a>
-				<a href="https://react.dev" target="_blank">
-					<img src={reactLogo} className="logo react" alt="React logo" />
-				</a>
-				<a href="https://hono.dev/" target="_blank">
-					<img src={honoLogo} className="logo cloudflare" alt="Hono logo" />
-				</a>
-				<a href="https://workers.cloudflare.com/" target="_blank">
-					<img
-						src={cloudflareLogo}
-						className="logo cloudflare"
-						alt="Cloudflare logo"
-					/>
-				</a>
-			</div>
-			<h1>Vite + React + Hono + Cloudflare</h1>
-			<div className="card">
-				<button
-					onClick={() => setCount((count) => count + 1)}
-					aria-label="increment"
-				>
-					count is {count}
-				</button>
-				<p>
-					Edit <code>src/App.tsx</code> and save to test HMR
-				</p>
-			</div>
-			<div className="card">
-				<button
-					onClick={() => {
-						fetch("/api/")
-							.then((res) => res.json() as Promise<{ name: string }>)
-							.then((data) => setName(data.name));
-					}}
-					aria-label="get name"
-				>
-					Name from API is: {name}
-				</button>
-				<p>
-					Edit <code>worker/index.ts</code> to change the name
-				</p>
-			</div>
-			<p className="read-the-docs">Click on the logos to learn more</p>
-		</>
+		<form className="kartu" onSubmit={kirim}>
+			<h1>Presensi</h1>
+			<label>
+				Username
+				<input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
+			</label>
+			<label>
+				Kata sandi
+				<input
+					type="password"
+					value={password}
+					onChange={(e) => setPassword(e.target.value)}
+					autoComplete="current-password"
+					required
+				/>
+			</label>
+			{galat && <p className="galat">{galat}</p>}
+			<button type="submit" disabled={proses}>
+				{proses ? "Memproses…" : "Masuk"}
+			</button>
+		</form>
+	);
+}
+
+function Beranda() {
+	const [saya, setSaya] = useState<Saya | null>(null);
+	const [galat, setGalat] = useState<string | null>(null);
+
+	useEffect(() => {
+		api<Saya>("/saya").then(setSaya, (g: Error) => setGalat(g.message));
+	}, []);
+
+	return (
+		<div className="kartu">
+			{galat && <p className="galat">{galat}</p>}
+			{!saya && !galat && <p>Memuat profil…</p>}
+			{saya && (
+				<>
+					<h1>Assalamu'alaikum, {saya.nama}</h1>
+					<p>
+						@{saya.username} · tingkat <strong>{saya.tingkat}</strong>
+					</p>
+					<h2>Lembaga</h2>
+					<ul>
+						{saya.lembaga.map((l) => (
+							<li key={l.id}>
+								{l.nama} — {l.tingkat}
+							</li>
+						))}
+					</ul>
+				</>
+			)}
+			<button onClick={() => keluar()}>Keluar</button>
+		</div>
 	);
 }
 
