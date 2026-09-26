@@ -1,21 +1,25 @@
 import { useState } from "react";
-import { keluar, setPeranAktif, type Saya } from "../lib/api";
+import { keluar, type Saya } from "../lib/api";
 
-export function Beranda({ saya, onKeluar }: { saya: Saya; onKeluar: () => void }) {
-	const [aktif, setAktif] = useState<string | null>(saya.peran.length === 1 ? saya.peran[0].kode : null);
+export function Beranda({
+	saya,
+	peranAktif,
+	onGantiPeran,
+	onKeluar,
+}: {
+	saya: Saya;
+	peranAktif: string | null;
+	onGantiPeran: () => void;
+	onKeluar: () => void;
+}) {
 	const [proses, setProses] = useState(false);
-
-	function pilih(kode: string) {
-		setAktif(kode);
-		setPeranAktif(kode);
-	}
+	const aktif = saya.peran.find((p) => p.kode === peranAktif) ?? saya.peran[0] ?? null;
 
 	async function klikKeluar() {
 		setProses(true);
 		try {
 			await keluar();
 		} finally {
-			setPeranAktif(null);
 			onKeluar();
 		}
 	}
@@ -42,31 +46,25 @@ export function Beranda({ saya, onKeluar }: { saya: Saya; onKeluar: () => void }
 				</div>
 			</header>
 
-			<section className="kartu" aria-labelledby="judul-peran">
-				<h2 id="judul-peran">Peran Anda</h2>
-				<p className="redup">Pilih peran untuk melanjutkan presensi.</p>
-				<ul className="daftar-peran" role="radiogroup" aria-labelledby="judul-peran">
-					{saya.peran.map((p) => (
-						<li key={p.kode}>
-							<button
-								type="button"
-								role="radio"
-								aria-checked={aktif === p.kode}
-								className="peran"
-								onClick={() => pilih(p.kode)}
-							>
-								<span className="peran__nama">{p.sebutan}</span>
-								<span className="peran__lembaga redup">
-									{p.lembaga.length > 0 ? p.lembaga.map((l) => l.nama).join(", ") : "Lembaga belum diatur"}
-								</span>
-								<span className={`lencana lencana--${p.tingkat}`}>
-									{p.tingkat === "admin" ? "Admin" : "Guru"}
-								</span>
-							</button>
-						</li>
-					))}
-				</ul>
-			</section>
+			{aktif && (
+				<section className="kartu" aria-labelledby="judul-aktif">
+					<h2 id="judul-aktif">Peran aktif</h2>
+					<div className="peran peran--tampil">
+						<span className="peran__nama">{aktif.sebutan}</span>
+						<span className="peran__lembaga redup">
+							{aktif.lembaga.length > 0 ? aktif.lembaga.map((l) => l.nama).join(", ") : "Lembaga belum diatur"}
+						</span>
+						<span className={`lencana lencana--${aktif.tingkat}`}>
+							{aktif.tingkat === "admin" ? "Admin" : "Guru"}
+						</span>
+					</div>
+					{saya.peran.length > 1 && (
+						<button type="button" className="tombol tombol--sekunder" onClick={onGantiPeran}>
+							Ganti peran
+						</button>
+					)}
+				</section>
+			)}
 
 			<button type="button" className="tombol tombol--garis" onClick={klikKeluar} disabled={proses}>
 				{proses ? "Keluar…" : "Keluar"}

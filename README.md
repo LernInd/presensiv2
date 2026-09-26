@@ -104,13 +104,25 @@ src/worker/
   lib/supabase.ts          PostgREST dengan token pengguna
 src/react-app/
   components/FormMasuk.tsx form login, validasi per kolom, jeda 2 dtk, pop-up
-  components/Dialog.tsx    pop-up <dialog> native
-  components/Beranda.tsx   profil + daftar peran
+  components/Dialog.tsx    pop-up <dialog> native (kredensial salah, batas percobaan)
+  components/PilihPeran.tsx halaman pilih peran, tampil saat peran > 1
+  components/Beranda.tsx   profil, peran aktif, ganti peran, keluar
   lib/api.ts, validasi.ts  fetch same-origin, aturan validasi (cermin server)
 ```
+
+## Alur setelah login
+
+- **1 peran** → langsung ke Beranda, peran itu otomatis aktif.
+- **>1 peran** → diarahkan ke halaman **Pilih Peran** (`PilihPeran.tsx`); menekan salah satu peran langsung mengaktifkannya dan lanjut ke Beranda. Tombol "Ganti peran" di Beranda kembali ke halaman ini tanpa perlu login ulang.
 
 ## Deploy
 
 ```bash
 npm run build && npm run deploy
 ```
+
+Perintah di atas harus dijalankan dari mesin yang sudah `wrangler login` ke
+akun Cloudflare terkait (bukan dari sandbox pengembangan ini, yang tidak
+memiliki kredensial deploy). Belum ada CI/CD di repo ini — setiap kali kode
+berubah, `npm run deploy` perlu dijalankan ulang secara manual agar Worker
+produksi memakai versi terbaru.

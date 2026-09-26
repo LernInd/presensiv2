@@ -229,6 +229,14 @@ input:disabled {
 	border-color: var(--garis);
 }
 
+/* Aksi non-destruktif (mis. "Ganti peran"): netral, bukan merah — merah
+   dicadangkan khusus untuk aksi destruktif seperti "Keluar". */
+.tombol--sekunder {
+	color: var(--utama);
+	background: var(--utama-lembut);
+	border-color: transparent;
+}
+
 .putar {
 	width: 18px;
 	height: 18px;
@@ -363,6 +371,14 @@ input:disabled {
 }
 
 .peran[aria-checked="true"] {
+	border-color: var(--utama);
+	background: var(--utama-lembut);
+}
+
+/* Kartu peran aktif di Beranda: tampilan sama seperti peran terpilih, tapi
+   bukan tombol — tidak bisa ditekan, jadi tanpa kursor pointer. */
+.peran--tampil {
+	cursor: default;
 	border-color: var(--utama);
 	background: var(--utama-lembut);
 }
