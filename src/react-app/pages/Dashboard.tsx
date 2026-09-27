@@ -4,12 +4,10 @@ import type { Saya } from "../lib/api";
 export function Dashboard({
 	saya,
 	peranAktif,
-	onGantiPeran,
 	onBukaAbsen,
 }: {
 	saya: Saya;
 	peranAktif: string | null;
-	onGantiPeran: () => void;
 	onBukaAbsen: (sesiId: string) => void;
 }) {
 	const aktif = saya.peran.find((p) => p.kode === peranAktif) ?? saya.peran[0] ?? null;
@@ -43,9 +41,7 @@ export function Dashboard({
 						</div>
 					</dl>
 					{saya.peran.length > 1 && (
-						<button type="button" className="tombol tombol--sekunder" onClick={onGantiPeran}>
-							Ganti peran
-						</button>
+						<p className="redup">Ganti peran lewat foto profil di pojok kanan atas.</p>
 					)}
 				</section>
 			)}

@@ -35,13 +35,11 @@ function Halaman({
 	rute,
 	saya,
 	peranAktif,
-	onGantiPeran,
 	navigasi,
 }: {
 	rute: Rute;
 	saya: Saya;
 	peranAktif: string | null;
-	onGantiPeran: () => void;
 	navigasi: (tujuan: string) => void;
 }) {
 	const bukaAbsen = (sesiId: string) => navigasi(`/jampelajaran?sesi=${encodeURIComponent(sesiId)}`);
@@ -64,9 +62,7 @@ function Halaman({
 				/>
 			);
 		default:
-			return (
-				<Dashboard saya={saya} peranAktif={peranAktif} onGantiPeran={onGantiPeran} onBukaAbsen={bukaAbsen} />
-			);
+			return <Dashboard saya={saya} peranAktif={peranAktif} onBukaAbsen={bukaAbsen} />;
 	}
 }
 
@@ -132,6 +128,8 @@ function App() {
 				onKeluar={klikKeluar}
 				proses={keluarProses}
 				onBukaSidebar={() => setSidebarTerbuka(true)}
+				bisaGantiPeran={saya.peran.length > 1}
+				onGantiPeran={() => setKeadaan({ tahap: "pilihPeran", saya })}
 			/>
 			<div className="app-shell__badan">
 				<Sidebar
@@ -141,13 +139,7 @@ function App() {
 					onTutup={() => setSidebarTerbuka(false)}
 				/>
 				<main className="app-shell__konten">
-					<Halaman
-						rute={rute}
-						saya={saya}
-						peranAktif={peranAktif}
-						onGantiPeran={() => setKeadaan({ tahap: "pilihPeran", saya })}
-						navigasi={navigasi}
-					/>
+					<Halaman rute={rute} saya={saya} peranAktif={peranAktif} navigasi={navigasi} />
 				</main>
 			</div>
 		</div>
