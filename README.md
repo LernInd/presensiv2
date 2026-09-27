@@ -83,6 +83,10 @@ presensi-db produksi. Isi data uji lokal dengan `npx wrangler d1 execute presens
 | `POST /api/masuk` | publik (rate limited) | login, memasang cookie sesi, mengembalikan profil + peran |
 | `POST /api/keluar` | cookie | mencabut sesi di Supabase + menghapus cookie |
 | `GET /api/saya` | cookie | profil, daftar peran presensi + lembaga |
+| `GET /api/jadwal-hari-ini` | cookie | jadwal mengajar guru hari ini; menerapkan `jadwal_pelajaran` → `sesi_pembelajaran` sekali per sesi (idempoten) |
+| `GET /api/sesi/:id` | cookie | detail satu sesi (dijaga `bolehMembukaSesi`) |
+| `GET /api/sesi/:id/presensi` | cookie | roster sesi; disemai sekali dari roster Supabase + `presensi_harian`/`surat_sakit`/`izin_santri` hari itu |
+| `PATCH /api/sesi/:id/presensi/:santriId` | cookie | ubah status (`hadir`/`izin`/`alfa`); menolak bila terkunci surat sakit/izin (409), atau bila status berubah tanpa keterangan (400) |
 
 Rute baru yang butuh login cukup didaftarkan setelah `app.use("*", pemanggil)`
 di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`peran`, `lembagaBoleh`,
@@ -94,6 +98,7 @@ di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`peran`, `lembagaBoleh`,
 src/worker/
   index.ts                 header keamanan, cek Origin, rute, penanganan galat
   routes/masuk.ts          /masuk & /keluar: validasi, rate limit, jeda, cookie
+  routes/pelajaran.ts      jadwal hari ini, detail sesi, roster, ubah status
   middleware/pemanggil.ts  sesi cookie → verifikasi/segarkan token → orang
   lib/pengguna.ts          muat profil + peran presensi + lembaga
   lib/peran.ts             PERAN_PRESENSI, tingkat, pemetaan lembaga
@@ -102,18 +107,60 @@ src/worker/
   lib/authSupabase.ts      login / refresh / logout ke Supabase Auth
   lib/sesi.ts              cookie HttpOnly sesi
   lib/supabase.ts          PostgREST dengan token pengguna
+  lib/waktu.ts             tanggal/hari/jam dari zona lembaga, bukan UTC D1
+  lib/jadwal.ts            terapkan jadwal_pelajaran → sesi_pembelajaran hari ini
+  lib/pembelajaran.ts      bolehMembukaSesi, seed roster, kunci sakit/izin, validasi status
 src/react-app/
   components/FormMasuk.tsx form login, validasi per kolom, jeda 2 dtk, pop-up
   components/Dialog.tsx    pop-up <dialog> native (kredensial salah, batas percobaan)
   components/PilihPeran.tsx halaman pilih peran, tampil saat peran > 1
-  components/Beranda.tsx   profil, peran aktif, ganti peran, keluar
+  components/Topbar.tsx    brand, identitas pengguna, keluar, tombol menu (mobile)
+  components/Sidebar.tsx   navigasi: Guru, Siswa, Pelajaran (off-canvas di ponsel)
+  components/KotakJadwalHariIni.tsx box jadwal, dipakai Dashboard & Jam Pelajaran
+  components/HalamanBelumTersedia.tsx placeholder untuk rute yang belum dibangun
+  lib/router.ts            router minimal berbasis History API (tanpa dependensi)
+  pages/Dashboard.tsx      peran aktif + kotak jadwal (khusus tingkat guru)
+  pages/JamPelajaran.tsx   daftar sesi hari ini + roster ambil-presensi per sesi
+  pages/MasukGuru.tsx, PulangGuru.tsx, MasukSiswa.tsx, PulangSiswa.tsx  placeholder
   lib/api.ts, validasi.ts  fetch same-origin, aturan validasi (cermin server)
 ```
 
 ## Alur setelah login
 
-- **1 peran** → langsung ke Beranda, peran itu otomatis aktif.
-- **>1 peran** → diarahkan ke halaman **Pilih Peran** (`PilihPeran.tsx`); menekan salah satu peran langsung mengaktifkannya dan lanjut ke Beranda. Tombol "Ganti peran" di Beranda kembali ke halaman ini tanpa perlu login ulang.
+- **1 peran** → langsung ke Dashboard, peran itu otomatis aktif.
+- **>1 peran** → diarahkan ke halaman **Pilih Peran** (`PilihPeran.tsx`); menekan salah satu peran langsung mengaktifkannya dan lanjut ke Dashboard. Tombol "Ganti peran" di Dashboard kembali ke halaman ini tanpa perlu login ulang.
+
+## Sidebar & rute halaman
+
+| Kategori | Sub | Rute | Status |
+| --- | --- | --- | --- |
+| — | Dashboard | `/` | peran aktif + jadwal mengajar hari ini (tingkat guru) |
+| Guru | Masuk / Pulang | `/masukguru`, `/pulangguru` | placeholder — fungsi baru, belum dibangun |
+| Siswa | Masuk / Pulang | `/masuksiswa`, `/pulangsiswa` | placeholder — fungsi baru, belum dibangun |
+| Pelajaran | Jam Pelajaran | `/jampelajaran`, `/jampelajaran?sesi=<id>` | daftar sesi hari ini + ambil presensi kelas |
+
+Rute-rute ini adalah URL sungguhan (bukan hash), ditangani `lib/router.ts` di
+sisi klien. Reload langsung di jalur mana pun tetap berfungsi karena Worker
+(`not_found_handling: single-page-application`, `run_worker_first: ["/api/*"]`
+di `wrangler.json`) dan Vite dev sama-sama jatuh ke `index.html` untuk apa pun
+selain `/api/*`.
+
+### Jam Pelajaran — logika yang diporting dari presensi-api lama
+
+- `jadwal_pelajaran` → `sesi_pembelajaran` diterapkan lazy saat guru membuka
+  dashboard/Jam Pelajaran hari itu (`on conflict do nothing` + indeks unik
+  parsial `sesi_unik_idx`), bukan lewat cron — aman dipanggil berkali-kali.
+- Roster kelas disemai sekali dari `v_santri` (Supabase) + status hari itu:
+  **sakit** (surat aktif) mengalahkan **izin** (disetujui ndalem), keduanya
+  mengalahkan hasil pindai **masuk** dari `presensi_harian`; selain itu **alfa**.
+- Guru tidak bisa menandai `sakit` (hanya lahir dari surat modul kesehatan).
+  Mengubah status ke selain status awal mewajibkan keterangan — ditegakkan
+  CHECK di D1 dan diperiksa ulang di `lib/pembelajaran.ts` untuk pesan yang ramah.
+- Status yang terkunci surat sakit/izin disetujui **dicek ulang ke tabel
+  sungguhan** saat PATCH (bukan hanya `status_awal` yang bisa basi), dan
+  ditolak 409.
+- Tiap perubahan nyata menulis `presensi_pembelajaran` + `riwayat_presensi`
+  dalam satu `DB.batch()`, supaya baris dan jejaknya tidak pernah menyimpang.
 
 ## Deploy
 

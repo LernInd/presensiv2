@@ -5,6 +5,7 @@ import { GagalTerkendali } from "./lib/galat";
 import { ringkasOrang } from "./lib/pengguna";
 import { pemanggil, type AppEnv } from "./middleware/pemanggil";
 import { masuk } from "./routes/masuk";
+import { pelajaran } from "./routes/pelajaran";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -40,6 +41,8 @@ app.route("/", masuk);
 app.use("*", pemanggil);
 
 app.get("/saya", (c) => c.json(ringkasOrang(c.env, c.get("orang"))));
+
+app.route("/", pelajaran);
 
 app.notFound((c) => c.json({ error: "Jalur tidak dikenal" }, 404));
 

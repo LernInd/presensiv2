@@ -1,23 +1,24 @@
+import { KotakJadwalHariIni } from "../components/KotakJadwalHariIni";
 import type { Saya } from "../lib/api";
 
-// "Keluar" hidup di Topbar (lihat App.tsx), tidak diulang di badan halaman.
-// Ganti peran tetap di sini karena itu aksi milik konteks halaman ini.
-export function Beranda({
+export function Dashboard({
 	saya,
 	peranAktif,
 	onGantiPeran,
+	onBukaAbsen,
 }: {
 	saya: Saya;
 	peranAktif: string | null;
 	onGantiPeran: () => void;
+	onBukaAbsen: (sesiId: string) => void;
 }) {
 	const aktif = saya.peran.find((p) => p.kode === peranAktif) ?? saya.peran[0] ?? null;
 
 	return (
-		<div className="container container--sempit">
+		<div className="container">
 			<div className="halaman-judul">
-				<h1>Beranda</h1>
-				<p className="redup">Peran yang sedang aktif untuk sesi ini.</p>
+				<h1>Dashboard</h1>
+				<p className="redup">Ringkasan untuk peran yang sedang aktif.</p>
 			</div>
 
 			{aktif && (
@@ -48,6 +49,8 @@ export function Beranda({
 					)}
 				</section>
 			)}
+
+			{aktif?.tingkat === "guru" && <KotakJadwalHariIni onBukaAbsen={onBukaAbsen} />}
 		</div>
 	);
 }

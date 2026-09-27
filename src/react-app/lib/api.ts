@@ -66,3 +66,41 @@ export const masuk = (username: string, password: string) =>
 export const keluar = () => api<{ keluar: true }>("/keluar", { method: "POST" });
 
 export const saya = () => api<Saya>("/saya");
+
+export type SesiHariIni = {
+	id: string;
+	lembaga_id: string;
+	kelas_id: string;
+	kelas_nama: string;
+	mapel: string;
+	jam_ke: number | null;
+	mulai: string;
+	selesai: string;
+	status: "buka" | "tutup";
+	terisi: number;
+};
+
+export type JadwalHariIni = { tanggal: string; hari: number; sesi: SesiHariIni[] };
+
+export const jadwalHariIni = () => api<JadwalHariIni>("/jadwal-hari-ini");
+
+export type BarisPresensi = {
+	santri_id: string;
+	santri_nama: string;
+	status: string;
+	status_awal: string;
+	keterangan: string | null;
+};
+
+export type DetailSesi = {
+	sesi: SesiHariIni & { lembaga_nama: string; guru_nama: string | null };
+	presensi: BarisPresensi[];
+};
+
+export const detailPresensiSesi = (sesiId: string) => api<DetailSesi>(`/sesi/${sesiId}/presensi`);
+
+export const ubahPresensi = (sesiId: string, santriId: string, badan: { status: string; keterangan?: string }) =>
+	api<{ status: string; keterangan: string | null }>(`/sesi/${sesiId}/presensi/${santriId}`, {
+		method: "PATCH",
+		body: JSON.stringify(badan),
+	});
