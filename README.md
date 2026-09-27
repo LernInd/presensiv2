@@ -87,6 +87,9 @@ presensi-db produksi. Isi data uji lokal dengan `npx wrangler d1 execute presens
 | `GET /api/sesi/:id` | cookie | detail satu sesi (dijaga `bolehMembukaSesi`) |
 | `GET /api/sesi/:id/presensi` | cookie | roster sesi; disemai sekali dari roster Supabase + `presensi_harian`/`surat_sakit`/`izin_santri` hari itu |
 | `PATCH /api/sesi/:id/presensi/:santriId` | cookie | ubah status (`hadir`/`izin`/`alfa`); menolak bila terkunci surat sakit/izin (409), atau bila status berubah tanpa keterangan (400) |
+| `POST /api/presensi/:tipe/pratinjau` | cookie (guru) | `:tipe` = `masuk`/`pulang`; pratinjau QR/manual sebelum dicatat — jalan yang sama dengan pencatatan |
+| `POST /api/presensi/:tipe` | cookie (guru) | catat presensi gerbang, idempoten (`on conflict do nothing` + PK) |
+| `GET /api/santri/cari?q=` | cookie (guru) | pencarian manual, minimal 3 huruf, 5 hasil paling relevan, dibatasi lembaga aktif |
 
 Rute baru yang butuh login cukup didaftarkan setelah `app.use("*", pemanggil)`
 di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`peran`, `lembagaBoleh`,
@@ -110,6 +113,9 @@ src/worker/
   lib/waktu.ts             tanggal/hari/jam dari zona lembaga, bukan UTC D1
   lib/jadwal.ts            terapkan jadwal_pelajaran → sesi_pembelajaran hari ini
   lib/pembelajaran.ts      bolehMembukaSesi, seed roster, kunci sakit/izin, validasi status
+  lib/pengaturanLembaga.ts baca jam gerbang/hari aktif per lembaga
+  lib/presensiHarian.ts    siapkanScan (satu jalan pratinjau+catat), idempoten
+  lib/pencarianSantri.ts   pencarian ≥3 huruf, skor relevansi, top 5, dibatasi lembaga
 src/react-app/
   components/FormMasuk.tsx form login, validasi per kolom, jeda 2 dtk, pop-up
   components/Dialog.tsx    pop-up <dialog> native (kredensial salah, batas percobaan)
@@ -121,7 +127,12 @@ src/react-app/
   lib/router.ts            router minimal berbasis History API (tanpa dependensi)
   pages/Dashboard.tsx      peran aktif + kotak jadwal (khusus tingkat guru)
   pages/JamPelajaran.tsx   daftar sesi hari ini + roster ambil-presensi per sesi
-  pages/MasukGuru.tsx, PulangGuru.tsx, MasukSiswa.tsx, PulangSiswa.tsx  placeholder
+  pages/MasukGuru.tsx, PulangGuru.tsx  placeholder — fungsi baru, belum dibangun
+  pages/MasukSiswa.tsx, PulangSiswa.tsx  bungkus tipis PresensiSiswaHalaman
+  components/PresensiSiswaHalaman.tsx  toggle Pindai QR / Absen Manual + pop-up konfirmasi
+  components/PemindaiQr.tsx    kamera + BarcodeDetector bawaan (tanpa dependensi jsQR)
+  components/PencarianSiswa.tsx  input ≥3 huruf, daftar 5 hasil dari server
+  components/KonfirmasiScan.tsx  pop-up: foto, nama, kelas, status, tombol Konfirmasi/Batal
   lib/api.ts, validasi.ts  fetch same-origin, aturan validasi (cermin server)
 ```
 
@@ -136,7 +147,7 @@ src/react-app/
 | --- | --- | --- | --- |
 | — | Dashboard | `/` | peran aktif + jadwal mengajar hari ini (tingkat guru) |
 | Guru | Masuk / Pulang | `/masukguru`, `/pulangguru` | placeholder — fungsi baru, belum dibangun |
-| Siswa | Masuk / Pulang | `/masuksiswa`, `/pulangsiswa` | placeholder — fungsi baru, belum dibangun |
+| Siswa | Masuk / Pulang | `/masuksiswa`, `/pulangsiswa` | **Pindai QR** (utama) atau **Absen Manual** (cadangan), keduanya lewat pop-up konfirmasi |
 | Pelajaran | Jam Pelajaran | `/jampelajaran`, `/jampelajaran?sesi=<id>` | daftar sesi hari ini + ambil presensi kelas |
 
 Rute-rute ini adalah URL sungguhan (bukan hash), ditangani `lib/router.ts` di
@@ -161,6 +172,31 @@ selain `/api/*`.
   ditolak 409.
 - Tiap perubahan nyata menulis `presensi_pembelajaran` + `riwayat_presensi`
   dalam satu `DB.batch()`, supaya baris dan jejaknya tidak pernah menyimpang.
+
+### Siswa Masuk/Pulang — Pindai QR (utama) & Absen Manual (cadangan)
+
+- Toggle di atas halaman menentukan sumber santri; keduanya berujung ke
+  fungsi server yang sama, `siapkanScan` — pratinjau dan pencatatan **melewati
+  jalan yang sama**, jadi penolakan yang tampil di pop-up pasti berlaku juga
+  saat dikonfirmasi.
+- **Pindai QR**: kode `SANTRI:<uuid>` dibaca via `BarcodeDetector` bawaan
+  peramban (tanpa dependensi `jsQR` tambahan). Kode sama diabaikan 3 detik,
+  dan kamera dijeda selama pop-up konfirmasi terbuka.
+- **Absen Manual**: pencarian nama minimal 3 huruf, di-debounce 300ms, server
+  mengembalikan maksimal 5 hasil terurut skor relevansi (cocok persis → awalan
+  nama → awalan salah satu kata → mengandung kata), dibatasi ke lembaga peran
+  aktif saja.
+- **"GuruSMK hanya bisa scan siswa SMK, dst."** ditegakkan di server
+  (`siapkanScan`), bukan cuma di layar pencarian — kartu QR dari lembaga lain
+  pun ditolak 403, karena santri dicocokkan ke `orang.lembagaBoleh` sebelum
+  apa pun lain diproses.
+- **Pop-up konfirmasi** menampilkan foto, nama, dan kelas sebelum status
+  benar-benar ditulis; tiga bentuk: siap dikonfirmasi, diblokir (dengan
+  alasan — hari libur, terlalu awal, sedang sakit/izin, jam gerbang belum
+  diatur), atau sudah tercatat sebelumnya (idempoten, tidak ditimpa).
+- Presensi gerbang tidak pernah menulis status `sakit`/`izin` — bila santri
+  sedang sakit/izin, tombol Konfirmasi tidak muncul sama sekali (wilayah itu
+  milik modul kesehatan/perizinan, belum dibangun di sini).
 
 ## Deploy
 

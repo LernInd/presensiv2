@@ -104,3 +104,28 @@ export const ubahPresensi = (sesiId: string, santriId: string, badan: { status: 
 		method: "PATCH",
 		body: JSON.stringify(badan),
 	});
+
+export type SantriRingkas = {
+	id: string;
+	nama_lengkap: string;
+	kelas_nama: string | null;
+	lembaga_nama: string;
+	foto_url: string | null;
+};
+
+export type BadanScan = { cara: "qr"; kode: string } | { cara: "manual"; santri_id: string };
+
+export type HasilScan =
+	| { diblokir: true; alasan: string; santri: SantriRingkas }
+	| { diblokir: false; sudah: true; status: string; waktu: string; santri: SantriRingkas }
+	| { diblokir: false; sudah: false; status: string; santri: SantriRingkas };
+
+export type TipeGerbang = "masuk" | "pulang";
+
+export const pratinjauPresensi = (tipe: TipeGerbang, badan: BadanScan) =>
+	api<HasilScan>(`/presensi/${tipe}/pratinjau`, { method: "POST", body: JSON.stringify(badan) });
+
+export const catatPresensi = (tipe: TipeGerbang, badan: BadanScan) =>
+	api<HasilScan>(`/presensi/${tipe}`, { method: "POST", body: JSON.stringify(badan) });
+
+export const cariSantri = (q: string) => api<SantriRingkas[]>(`/santri/cari?q=${encodeURIComponent(q)}`);
