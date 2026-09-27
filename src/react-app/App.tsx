@@ -1,30 +1,80 @@
 import { useEffect, useState } from "react";
-import { Beranda } from "./components/Beranda";
 import { FormMasuk } from "./components/FormMasuk";
 import { PilihPeran } from "./components/PilihPeran";
+import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
+import { useRute, type Rute } from "./lib/router";
 import { GagalApi, keluar, setPeranAktif, saya as ambilSaya, type Saya } from "./lib/api";
+import { Dashboard } from "./pages/Dashboard";
+import { JamPelajaran } from "./pages/JamPelajaran";
+import { MasukGuru } from "./pages/MasukGuru";
+import { MasukSiswa } from "./pages/MasukSiswa";
+import { PulangGuru } from "./pages/PulangGuru";
+import { PulangSiswa } from "./pages/PulangSiswa";
 
 type Keadaan =
 	| { tahap: "memuat" }
 	| { tahap: "masuk" }
 	| { tahap: "pilihPeran"; saya: Saya }
-	| { tahap: "beranda"; saya: Saya; peranAktif: string | null };
+	| { tahap: "aplikasi"; saya: Saya; peranAktif: string | null };
 
 function keadaanSetelahMasuk(saya: Saya): Keadaan {
-	// Satu peran saja: tidak ada yang perlu dipilih, langsung ke beranda.
+	// Satu peran saja: tidak ada yang perlu dipilih, langsung ke dashboard.
 	if (saya.peran.length <= 1) {
 		const kode = saya.peran[0]?.kode ?? null;
 		setPeranAktif(kode);
-		return { tahap: "beranda", saya, peranAktif: kode };
+		return { tahap: "aplikasi", saya, peranAktif: kode };
 	}
 	// Lebih dari satu peran: akses diterima, arahkan ke halaman pilih peran.
 	return { tahap: "pilihPeran", saya };
 }
 
+// Rute datar di sidebar (Guru/Siswa/Pelajaran) dipetakan ke satu file per
+// halaman di src/react-app/pages/ supaya masing-masing gampang dirawat sendiri.
+function Halaman({
+	rute,
+	saya,
+	peranAktif,
+	onGantiPeran,
+	navigasi,
+}: {
+	rute: Rute;
+	saya: Saya;
+	peranAktif: string | null;
+	onGantiPeran: () => void;
+	navigasi: (tujuan: string) => void;
+}) {
+	const bukaAbsen = (sesiId: string) => navigasi(`/jampelajaran?sesi=${encodeURIComponent(sesiId)}`);
+
+	switch (rute.pathname) {
+		case "/masukguru":
+			return <MasukGuru />;
+		case "/pulangguru":
+			return <PulangGuru />;
+		case "/masuksiswa":
+			return <MasukSiswa />;
+		case "/pulangsiswa":
+			return <PulangSiswa />;
+		case "/jampelajaran":
+			return (
+				<JamPelajaran
+					sesiId={rute.params.get("sesi")}
+					onPilihSesi={bukaAbsen}
+					onKembali={() => navigasi("/jampelajaran")}
+				/>
+			);
+		default:
+			return (
+				<Dashboard saya={saya} peranAktif={peranAktif} onGantiPeran={onGantiPeran} onBukaAbsen={bukaAbsen} />
+			);
+	}
+}
+
 function App() {
 	const [keadaan, setKeadaan] = useState<Keadaan>({ tahap: "memuat" });
 	const [keluarProses, setKeluarProses] = useState(false);
+	const [sidebarTerbuka, setSidebarTerbuka] = useState(false);
+	const [rute, navigasi] = useRute();
 
 	// Sesi hanya ada di cookie server. Bila cookie sudah hilang (browser
 	// ditutup), /saya menjawab 401 dan pengguna kembali ke form login.
@@ -61,23 +111,45 @@ function App() {
 		return <FormMasuk onMasuk={(saya) => setKeadaan(keadaanSetelahMasuk(saya))} />;
 	}
 
-	// pilihPeran & beranda berbagi chrome aplikasi (topbar dengan identitas
-	// pengguna dan aksi keluar) — hanya konten di bawahnya yang berbeda.
-	const { saya } = keadaan;
+	if (keadaan.tahap === "pilihPeran") {
+		const { saya } = keadaan;
+		return (
+			<div className="app-shell">
+				<Topbar nama={saya.nama} fotoUrl={saya.foto_url} onKeluar={klikKeluar} proses={keluarProses} />
+				<main className="app-shell__konten">
+					<PilihPeran saya={saya} onPilih={(kode) => setKeadaan({ tahap: "aplikasi", saya, peranAktif: kode })} />
+				</main>
+			</div>
+		);
+	}
+
+	const { saya, peranAktif } = keadaan;
 	return (
-		<div className="app-shell">
-			<Topbar nama={saya.nama} fotoUrl={saya.foto_url} onKeluar={klikKeluar} proses={keluarProses} />
-			<main className="app-shell__konten">
-				{keadaan.tahap === "pilihPeran" ? (
-					<PilihPeran saya={saya} onPilih={(kode) => setKeadaan({ tahap: "beranda", saya, peranAktif: kode })} />
-				) : (
-					<Beranda
+		<div className="app-shell app-shell--sidebar">
+			<Topbar
+				nama={saya.nama}
+				fotoUrl={saya.foto_url}
+				onKeluar={klikKeluar}
+				proses={keluarProses}
+				onBukaSidebar={() => setSidebarTerbuka(true)}
+			/>
+			<div className="app-shell__badan">
+				<Sidebar
+					pathname={rute.pathname}
+					navigasi={navigasi}
+					terbuka={sidebarTerbuka}
+					onTutup={() => setSidebarTerbuka(false)}
+				/>
+				<main className="app-shell__konten">
+					<Halaman
+						rute={rute}
 						saya={saya}
-						peranAktif={keadaan.peranAktif}
+						peranAktif={peranAktif}
 						onGantiPeran={() => setKeadaan({ tahap: "pilihPeran", saya })}
+						navigasi={navigasi}
 					/>
-				)}
-			</main>
+				</main>
+			</div>
 		</div>
 	);
 }
