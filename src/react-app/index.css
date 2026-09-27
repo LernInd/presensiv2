@@ -145,20 +145,41 @@ h2 {
 	font-size: 1.0625rem;
 }
 
-.topbar__akun {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	min-width: 0;
-}
-
 .topbar .avatar {
 	width: 32px;
 	height: 32px;
 	font-size: 0.8125rem;
 }
 
-.topbar__nama {
+/* Menu akun: foto profil + nama sebagai satu tombol pemicu dropdown
+   (Ganti peran, Keluar) — bukan tombol Keluar terpisah yang selalu tampil. */
+.menu-akun {
+	position: relative;
+}
+
+.menu-akun__pemicu {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 4px 8px 4px 4px;
+	font: inherit;
+	color: var(--teks);
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+.menu-akun__pemicu:hover {
+	border-color: var(--garis);
+}
+
+.menu-akun__pemicu:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--utama) 40%, transparent);
+	outline-offset: 2px;
+}
+
+.menu-akun__nama {
 	font-weight: 600;
 	font-size: 0.9375rem;
 	max-width: 180px;
@@ -167,43 +188,64 @@ h2 {
 	white-space: nowrap;
 }
 
-.topbar__keluar {
-	display: inline-flex;
-	align-items: center;
-	gap: 6px;
-	padding: 7px 14px;
-	font: inherit;
-	font-size: 0.875rem;
-	font-weight: 600;
+.menu-akun__panah {
+	flex: none;
 	color: var(--redup);
-	background: transparent;
+	transition: transform 0.15s;
+}
+
+.menu-akun__panah--terbuka {
+	transform: rotate(180deg);
+}
+
+.menu-akun__daftar {
+	position: absolute;
+	top: calc(100% + 6px);
+	right: 0;
+	z-index: 20;
+	min-width: 180px;
+	padding: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	background: var(--permukaan);
 	border: 1px solid var(--garis);
 	border-radius: var(--radius);
+	box-shadow: 0 12px 32px rgb(15 23 42 / 18%);
+}
+
+.menu-akun__item {
+	padding: 9px 12px;
+	font: inherit;
+	font-size: 0.9375rem;
+	font-weight: 600;
+	text-align: left;
+	color: var(--teks);
+	background: transparent;
+	border: 0;
+	border-radius: calc(var(--radius) - 2px);
 	cursor: pointer;
 	white-space: nowrap;
-	transition: color 0.15s, border-color 0.15s;
 }
 
-.topbar__keluar:hover:not(:disabled) {
-	color: var(--galat);
-	border-color: var(--galat);
+.menu-akun__item:hover:not(:disabled) {
+	background: var(--latar);
 }
 
-.topbar__keluar:focus-visible {
+.menu-akun__item:focus-visible {
 	outline: 3px solid color-mix(in srgb, var(--utama) 40%, transparent);
-	outline-offset: 2px;
+	outline-offset: -2px;
 }
 
-.topbar__keluar:disabled {
+.menu-akun__item--keluar {
+	color: var(--galat);
+}
+
+.menu-akun__item:disabled {
 	opacity: 0.6;
 	cursor: not-allowed;
 }
 
-@media (max-width: 480px) {
-	.topbar__nama {
-		display: none;
-	}
-}
 
 /* Kontainer konten di dalam app-shell: melebar secara sistematis mengikuti
    layar, bukan kartu ponsel yang diregangkan. */
@@ -721,6 +763,12 @@ input:disabled {
 @media (max-width: 860px) {
 	.topbar__menu {
 		display: inline-flex;
+	}
+
+	/* Ponsel: brand disembunyikan, foto profil + nama lengkap jadi identitas
+	   utama di header kanan (tetap jadi pemicu dropdown akun). */
+	.topbar__brand {
+		display: none;
 	}
 
 	.sidebar {
