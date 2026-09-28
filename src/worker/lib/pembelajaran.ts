@@ -19,7 +19,9 @@ export type SesiRow = {
 	guru_nama: string | null;
 };
 
-export const STATUS_SAH = ["hadir", "izin", "alfa"] as const;
+// "tidak_hadir" beda dari "alfa": dipilih guru saat santri sudah scan masuk
+// di gerbang (jadi bukan alfa) tapi tidak mengikuti pelajaran ini.
+export const STATUS_SAH = ["hadir", "izin", "alfa", "tidak_hadir"] as const;
 export type StatusSah = (typeof STATUS_SAH)[number];
 
 function placeholder(n: number): string {

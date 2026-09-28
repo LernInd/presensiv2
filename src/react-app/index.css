@@ -860,23 +860,34 @@ input:disabled {
 	gap: 10px;
 }
 
+/* Baris ringkas: nama + lencana status di satu baris, aksi (kalau ada) di
+   bawahnya — supaya di mobile tidak perlu wrap tombol berjajar. */
 .daftar-roster__baris {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
+	flex-direction: column;
+	gap: 10px;
 	padding: 12px 14px;
 	background: var(--permukaan);
 	border: 1px solid var(--garis);
 	border-radius: var(--radius);
-	flex-wrap: wrap;
+}
+
+.daftar-roster__info {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
 }
 
 .daftar-roster__nama {
 	font-weight: 600;
 }
 
-.daftar-roster__aksi {
+.daftar-roster__terkunci {
+	font-size: 0.8125rem;
+}
+
+.daftar-roster__opsi {
 	display: flex;
 	align-items: center;
 	gap: 6px;
@@ -887,8 +898,6 @@ input:disabled {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex: 1;
-	min-width: 240px;
 	flex-wrap: wrap;
 }
 
@@ -898,44 +907,59 @@ input:disabled {
 	min-height: 36px;
 }
 
-.status-tombol {
-	min-height: 32px;
-	padding: 0 12px;
+.lencana-status {
+	display: inline-flex;
+	align-items: center;
+	flex: none;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 0.75rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.lencana-status--hadir {
+	color: var(--utama);
+	background: var(--utama-lembut);
+}
+
+.lencana-status--izin {
+	color: var(--peringatan);
+	background: var(--peringatan-lembut);
+}
+
+.lencana-status--alfa {
+	color: var(--galat);
+	background: var(--galat-lembut);
+}
+
+/* Antara Izin (peringatan) dan Alfa (galat): sudah masuk gerbang, tapi tidak
+   ikut pelajaran ini. */
+.lencana-status--tidak_hadir {
+	color: color-mix(in srgb, var(--peringatan) 50%, var(--galat) 50%);
+	background: color-mix(in srgb, var(--peringatan-lembut) 50%, var(--galat-lembut) 50%);
+}
+
+.lencana-status--sakit {
+	color: var(--redup);
+	background: var(--garis);
+}
+
+.tombol--tautan {
+	align-self: flex-start;
 	font: inherit;
 	font-size: 0.8125rem;
 	font-weight: 600;
 	color: var(--redup);
-	background: transparent;
-	border: 1px solid var(--garis);
-	border-radius: 999px;
+	background: none;
+	border: none;
+	padding: 6px 4px;
 	cursor: pointer;
+	text-decoration: underline;
 }
 
-.status-tombol:disabled {
-	opacity: 0.6;
-	cursor: not-allowed;
-}
-
-.status-tombol:focus-visible {
-	outline: 3px solid color-mix(in srgb, var(--utama) 40%, transparent);
-}
-
-.status-tombol--aktif.status-tombol--hadir {
+.tombol--tautan:hover {
 	color: var(--utama);
-	background: var(--utama-lembut);
-	border-color: var(--utama);
-}
-
-.status-tombol--aktif.status-tombol--izin {
-	color: var(--peringatan);
-	background: var(--peringatan-lembut);
-	border-color: var(--peringatan);
-}
-
-.status-tombol--aktif.status-tombol--alfa {
-	color: var(--galat);
-	background: var(--galat-lembut);
-	border-color: var(--galat);
 }
 
 /* Toggle Pindai QR / Absen Manual */

@@ -2,8 +2,14 @@ import { useEffect, useState } from "react";
 import { KotakJadwalHariIni } from "../components/KotakJadwalHariIni";
 import { GagalApi, detailPresensiSesi, ubahPresensi, type BarisPresensi, type DetailSesi } from "../lib/api";
 
-const SEBUTAN_STATUS: Record<string, string> = { hadir: "Hadir", izin: "Izin", sakit: "Sakit", alfa: "Alfa" };
-const OPSI_STATUS = ["hadir", "izin", "alfa"] as const;
+const SEBUTAN_STATUS: Record<string, string> = {
+	hadir: "Hadir",
+	izin: "Izin",
+	sakit: "Sakit",
+	alfa: "Alfa",
+	tidak_hadir: "Tidak Hadir",
+};
+const OPSI_STATUS = ["hadir", "izin", "alfa", "tidak_hadir"] as const;
 
 export function JamPelajaran({
 	sesiId,
@@ -37,6 +43,9 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 	const [prosesId, setProsesId] = useState<string | null>(null);
 	const [galatBaris, setGalatBaris] = useState<string | null>(null);
 	const [draf, setDraf] = useState<Draf | null>(null);
+	// Baris yang sedang menampilkan pilihan ubah status (bukan tombol status
+	// selalu tampil) — supaya di mobile baris tetap ringkas walau opsinya 4.
+	const [ubahId, setUbahId] = useState<string | null>(null);
 
 	useEffect(() => {
 		let aktif = true;
@@ -71,6 +80,7 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 	}
 
 	function pilihStatus(p: BarisPresensi, status: string) {
+		setUbahId(null);
 		if (status === p.status) return;
 		if (status === p.status_awal) {
 			void kirim(p.santri_id, status, "");
@@ -103,7 +113,10 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 					<ul className="daftar-roster">
 						{data.presensi.map((p) => (
 							<li key={p.santri_id} className="daftar-roster__baris">
-								<span className="daftar-roster__nama">{p.santri_nama}</span>
+								<div className="daftar-roster__info">
+									<span className="daftar-roster__nama">{p.santri_nama}</span>
+									<span className={`lencana-status lencana-status--${p.status}`}>{SEBUTAN_STATUS[p.status]}</span>
+								</div>
 
 								{draf?.santriId === p.santri_id ? (
 									<form
@@ -132,22 +145,34 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 											Batal
 										</button>
 									</form>
-								) : (
-									<div className="daftar-roster__aksi" role="group" aria-label={`Status ${p.santri_nama}`}>
-										{OPSI_STATUS.map((opsi) => (
+								) : p.status === "sakit" ? (
+									<span className="redup daftar-roster__terkunci">Terkunci oleh surat sakit</span>
+								) : ubahId === p.santri_id ? (
+									<div className="daftar-roster__opsi" role="group" aria-label={`Ubah status ${p.santri_nama}`}>
+										{OPSI_STATUS.filter((opsi) => opsi !== p.status).map((opsi) => (
 											<button
 												key={opsi}
 												type="button"
-												className={`status-tombol status-tombol--${opsi} ${p.status === opsi ? "status-tombol--aktif" : ""}`}
-												disabled={prosesId === p.santri_id || p.status === "sakit"}
-												aria-pressed={p.status === opsi}
+												className="tombol tombol--sekunder tombol--kecil"
+												disabled={prosesId === p.santri_id}
 												onClick={() => pilihStatus(p, opsi)}
 											>
 												{SEBUTAN_STATUS[opsi]}
 											</button>
 										))}
-										{p.status === "sakit" && <span className="lencana lencana--admin">Sakit (terkunci)</span>}
+										<button type="button" className="tombol--tautan" onClick={() => setUbahId(null)}>
+											Batal
+										</button>
 									</div>
+								) : (
+									<button
+										type="button"
+										className="tombol tombol--sekunder tombol--kecil"
+										disabled={prosesId === p.santri_id}
+										onClick={() => setUbahId(p.santri_id)}
+									>
+										Ubah status
+									</button>
 								)}
 							</li>
 						))}
