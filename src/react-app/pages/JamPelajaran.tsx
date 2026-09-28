@@ -9,7 +9,12 @@ const SEBUTAN_STATUS: Record<string, string> = {
 	alfa: "Alfa",
 	tidak_hadir: "Tidak Hadir",
 };
-const OPSI_STATUS = ["hadir", "izin", "alfa", "tidak_hadir"] as const;
+// "izin" dan "sakit" sengaja tidak termasuk di sini: keduanya hanya lahir
+// dari modul perizinan/kesehatan (lih. STATUS_SAH di worker), jadi guru
+// tidak punya opsi untuk memilihnya — baris dengan salah satu status itu
+// langsung tampil terkunci di bawah.
+const OPSI_STATUS = ["hadir", "alfa", "tidak_hadir"] as const;
+const STATUS_TERKUNCI = new Set(["sakit", "izin"]);
 
 export function JamPelajaran({
 	sesiId,
@@ -145,8 +150,10 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 											Batal
 										</button>
 									</form>
-								) : p.status === "sakit" ? (
-									<span className="redup daftar-roster__terkunci">Terkunci oleh surat sakit</span>
+								) : STATUS_TERKUNCI.has(p.status) ? (
+									<span className="redup daftar-roster__terkunci">
+										{p.status === "sakit" ? "Terkunci oleh surat sakit" : "Terkunci oleh izin yang disetujui"}
+									</span>
 								) : ubahId === p.santri_id ? (
 									<div className="daftar-roster__opsi" role="group" aria-label={`Ubah status ${p.santri_nama}`}>
 										{OPSI_STATUS.filter((opsi) => opsi !== p.status).map((opsi) => (

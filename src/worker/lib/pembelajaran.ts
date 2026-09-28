@@ -19,9 +19,14 @@ export type SesiRow = {
 	guru_nama: string | null;
 };
 
-// "tidak_hadir" beda dari "alfa": dipilih guru saat santri sudah scan masuk
-// di gerbang (jadi bukan alfa) tapi tidak mengikuti pelajaran ini.
-export const STATUS_SAH = ["hadir", "izin", "alfa", "tidak_hadir"] as const;
+// "sakit" dan "izin" sengaja tidak termasuk di sini: keduanya hanya boleh
+// lahir dari modul kesehatan/perizinan (surat sakit / izin_santri yang
+// disetujui), dan begitu status hari itu sakit/izin, guru tidak bisa
+// mengubahnya sama sekali (lih. kuncianStatus + pengecekan 409 di
+// routes/pelajaran.ts). "tidak_hadir" beda dari "alfa": dipilih guru saat
+// santri sudah scan masuk di gerbang (jadi bukan alfa) tapi tidak mengikuti
+// pelajaran ini.
+export const STATUS_SAH = ["hadir", "alfa", "tidak_hadir"] as const;
 export type StatusSah = (typeof STATUS_SAH)[number];
 
 function placeholder(n: number): string {
@@ -167,8 +172,8 @@ export function periksaUbahStatus(isi: unknown, statusAwal: string): UbahStatusB
 		throw new GagalRute(400, "Isian tidak sah");
 	}
 	const { status, keterangan } = isi as Record<string, unknown>;
-	// "sakit" sengaja tidak termasuk STATUS_SAH: status itu hanya lahir dari
-	// surat sakit yang diterbitkan modul kesehatan, bukan ditandai guru.
+	// "sakit"/"izin" sengaja tidak termasuk STATUS_SAH — lihat komentar di
+	// definisinya.
 	if (typeof status !== "string" || !(STATUS_SAH as readonly string[]).includes(status)) {
 		throw new GagalRute(400, "Status tidak sah");
 	}

@@ -200,18 +200,26 @@ selain `/api/*`.
   dan dicocokkan baris-per-baris sebelum ditukar di produksi) untuk menambah
   nilai ini; `status_awal` sengaja **tidak** ikut diubah karena tidak pernah
   diisi otomatis dengan "tidak_hadir".
-- Guru tidak bisa menandai `sakit` (hanya lahir dari surat modul kesehatan).
-  Mengubah status ke selain status awal mewajibkan keterangan — ditegakkan
-  CHECK di D1 dan diperiksa ulang di `lib/pembelajaran.ts` untuk pesan yang ramah.
+- Guru **tidak punya opsi** untuk menandai `sakit` maupun `izin` — keduanya
+  dikeluarkan dari `STATUS_SAH`/`OPSI_STATUS`, karena kedua status itu hanya
+  boleh lahir dari modul kesehatan/perizinan (surat sakit / `izin_santri`
+  yang disetujui). Begitu status hari itu sakit/izin, baris santri tampil
+  terkunci (tanpa tombol "Ubah status") sampai modul yang bersangkutan
+  mencabutnya sendiri. Mengubah status ke selain status awal (di antara tiga
+  opsi yang tersisa) tetap mewajibkan keterangan — ditegakkan CHECK di D1 dan
+  diperiksa ulang di `lib/pembelajaran.ts` untuk pesan yang ramah.
 - Status yang terkunci surat sakit/izin disetujui **dicek ulang ke tabel
-  sungguhan** saat PATCH (bukan hanya `status_awal` yang bisa basi), dan
-  ditolak 409.
+  sungguhan** saat PATCH (bukan hanya `status_awal` yang bisa basi, dan
+  bukan hanya lewat daftar opsi di layar), dan ditolak 409 — pertahanan
+  berlapis di server, bukan cuma UI yang menyembunyikan tombolnya.
 - Tiap perubahan nyata menulis `presensi_pembelajaran` + `riwayat_presensi`
   dalam satu `DB.batch()`, supaya baris dan jejaknya tidak pernah menyimpang.
 - Di layar (`pages/JamPelajaran.tsx`), tiap santri tampil sebagai nama +
-  lencana status ringkas; tombol "Ubah status" baru memunculkan pilihan lain
-  saat ditekan (bukan selalu menampilkan semua tombol status berjajar),
-  supaya tetap rapi di layar ponsel walau sekarang ada 4 pilihan.
+  lencana status ringkas; tombol "Ubah status" baru memunculkan opsi lain
+  saat ditekan (bukan selalu menampilkan semua tombol status berjajar) —
+  hanya untuk tiga status yang boleh dipilih guru (hadir/alfa/tidak hadir);
+  baris sakit/izin tidak punya tombol ini sama sekali, langsung tampil
+  terkunci.
 
 #### Tabel keterangan status
 
