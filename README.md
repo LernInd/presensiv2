@@ -189,6 +189,17 @@ selain `/api/*`.
 - Roster kelas disemai sekali dari `v_santri` (Supabase) + status hari itu:
   **sakit** (surat aktif) mengalahkan **izin** (disetujui ndalem), keduanya
   mengalahkan hasil pindai **masuk** dari `presensi_harian`; selain itu **alfa**.
+  Jadi status awal hanya empat kemungkinan: **hadir** (sudah scan masuk hari
+  itu, termasuk yang terlambat), **alfa** (belum scan masuk sama sekali),
+  **sakit**, atau **izin** — lihat tabel keterangan lengkap di bawah.
+- **Tidak Hadir** bukan status otomatis — guru memilihnya secara manual lewat
+  "Ubah status" saat santri sudah scan masuk (jadi bukan alfa) tapi tidak
+  mengikuti pelajaran tersebut. Nilai `status` di `presensi_pembelajaran`
+  (tabel produksi bersama) di-`ALTER`-CHECK lewat pembangunan ulang tabel
+  (`create table baru → copy → drop → rename`, diverifikasi dulu di D1 lokal
+  dan dicocokkan baris-per-baris sebelum ditukar di produksi) untuk menambah
+  nilai ini; `status_awal` sengaja **tidak** ikut diubah karena tidak pernah
+  diisi otomatis dengan "tidak_hadir".
 - Guru tidak bisa menandai `sakit` (hanya lahir dari surat modul kesehatan).
   Mengubah status ke selain status awal mewajibkan keterangan — ditegakkan
   CHECK di D1 dan diperiksa ulang di `lib/pembelajaran.ts` untuk pesan yang ramah.
@@ -197,6 +208,20 @@ selain `/api/*`.
   ditolak 409.
 - Tiap perubahan nyata menulis `presensi_pembelajaran` + `riwayat_presensi`
   dalam satu `DB.batch()`, supaya baris dan jejaknya tidak pernah menyimpang.
+- Di layar (`pages/JamPelajaran.tsx`), tiap santri tampil sebagai nama +
+  lencana status ringkas; tombol "Ubah status" baru memunculkan pilihan lain
+  saat ditekan (bukan selalu menampilkan semua tombol status berjajar),
+  supaya tetap rapi di layar ponsel walau sekarang ada 4 pilihan.
+
+#### Tabel keterangan status
+
+| Status | Kapan diberikan | Sumber | Bisa diubah guru? |
+| --- | --- | --- | --- |
+| **Hadir** | Sudah scan masuk hari itu (termasuk yang terlambat) | Otomatis dari `presensi_harian` (scan gerbang) | Ya |
+| **Alfa** | Belum scan masuk sama sekali hari itu | Otomatis (fallback) | Ya |
+| **Tidak Hadir** | Sudah scan masuk di gerbang, tapi tidak hadir di pelajaran ini | Dipilih manual lewat "Ubah status" | Ya |
+| **Sakit** | Punya surat sakit aktif yang disetujui | Otomatis, hanya dari modul kesehatan | Tidak — terkunci |
+| **Izin** | Izin disetujui ndalem (`izin_santri`) | Otomatis, hanya dari aplikasi perizinan | Tidak — terkunci |
 
 ### Siswa Masuk/Pulang — Pindai QR (utama) & Absen Manual (cadangan)
 
