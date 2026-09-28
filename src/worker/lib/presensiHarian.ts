@@ -1,6 +1,6 @@
 import { liburPadaTanggal } from "./hariLibur";
 import { ambilPengaturan } from "./pengaturanLembaga";
-import { kuncianStatus } from "./pembelajaran";
+import { kuncianStatus, perbaruiAlfaKeHadir } from "./pembelajaran";
 import { GagalRute } from "./galat";
 import type { Orang } from "./pengguna";
 import { santriById, urlBerkas, uuid, type Santri } from "./supabase";
@@ -186,6 +186,13 @@ export async function catatScan(env: Env, orang: Orang, tipe: Tipe, hasil: Hasil
 	)
 		.bind(konteks.tanggal, konteks.santri.id, tipe)
 		.first<{ waktu: string; status: string }>();
+
+	// Scan masuk yang sungguhan adalah satu-satunya jalan keluar dari Alfa —
+	// perbaiki jam pelajaran hari ini yang sudah terlanjur disemai sebagai
+	// alfa sebelum santri sempat scan (lih. komentar di perbaruiAlfaKeHadir).
+	if (tipe === "masuk") {
+		await perbaruiAlfaKeHadir(env, konteks.tanggal, konteks.santri.id, orang.uid, orang.nama);
+	}
 
 	return { diblokir: false, sudah: true, status: baris!.status, waktu: baris!.waktu, santri: hasil.santri };
 }

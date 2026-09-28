@@ -23,10 +23,12 @@ export type SesiRow = {
 // lahir dari modul kesehatan/perizinan (surat sakit / izin_santri yang
 // disetujui), dan begitu status hari itu sakit/izin, guru tidak bisa
 // mengubahnya sama sekali (lih. kuncianStatus + pengecekan 409 di
-// routes/pelajaran.ts). "tidak_hadir" beda dari "alfa": dipilih guru saat
-// santri sudah scan masuk di gerbang (jadi bukan alfa) tapi tidak mengikuti
-// pelajaran ini.
-export const STATUS_SAH = ["hadir", "alfa", "tidak_hadir"] as const;
+// routes/pelajaran.ts). "alfa" juga sengaja tidak termasuk: satu-satunya
+// jalan keluar dari alfa adalah santri benar-benar scan masuk di gerbang
+// (lih. perbaruiAlfaKeHadir di bawah) — guru tidak boleh menetapkannya
+// sendiri. "tidak_hadir" dipilih guru saat santri sudah hadir (status_awal
+// hadir) tapi tidak mengikuti pelajaran ini.
+export const STATUS_SAH = ["hadir", "tidak_hadir"] as const;
 export type StatusSah = (typeof STATUS_SAH)[number];
 
 function placeholder(n: number): string {
@@ -105,6 +107,48 @@ export async function kuncianStatus(env: Env, tanggal: string, santriId: string)
 	if ((await santriBersurat(env, tanggal, [santriId])).size > 0) return "sakit";
 	if ((await santriBerizin(env, tanggal, [santriId])).size > 0) return "izin";
 	return null;
+}
+
+/**
+ * Satu-satunya jalan Alfa → Hadir: scan masuk yang sungguhan, bukan guru
+ * menekan tombol. Roster kelas disemai sekali saat pertama dibuka (lih.
+ * `daftarPresensi`) — kalau guru sudah membuka "Buka Absen" sebelum santri
+ * scan, baris itu beku sebagai alfa selamanya kecuali diperbaiki di sini.
+ * Dipanggil sesudah `presensi_harian` tipe masuk berhasil dicatat: baris
+ * `presensi_pembelajaran` hari itu yang MASIH alfa (belum pernah disentuh
+ * guru — `status = status_awal = 'alfa'`) diperbaiki jadi hadir. Baris yang
+ * sudah pernah diubah guru (status ≠ status_awal, dari sebelum aturan ini
+ * berlaku) sengaja tidak ditimpa.
+ */
+export async function perbaruiAlfaKeHadir(
+	env: Env,
+	tanggal: string,
+	santriId: string,
+	oleh: string,
+	olehNama: string,
+): Promise<void> {
+	const { results } = await env.DB.prepare(
+		`select p.sesi_id from presensi_pembelajaran p
+		 join sesi_pembelajaran s on s.id = p.sesi_id
+		 where p.santri_id = ? and p.status = 'alfa' and p.status_awal = 'alfa' and s.tanggal = ?`,
+	)
+		.bind(santriId, tanggal)
+		.all<{ sesi_id: string }>();
+	if (results.length === 0) return;
+
+	await env.DB.batch(
+		results.flatMap((r) => [
+			env.DB.prepare(
+				`update presensi_pembelajaran
+				 set status = 'hadir', status_awal = 'hadir', diubah_oleh = ?, diubah_pada = datetime('now')
+				 where sesi_id = ? and santri_id = ?`,
+			).bind(oleh, r.sesi_id, santriId),
+			env.DB.prepare(
+				`insert into riwayat_presensi (sesi_id, santri_id, dari_status, ke_status, keterangan, oleh, oleh_nama)
+				 values (?, ?, 'alfa', 'hadir', ?, ?, ?)`,
+			).bind(r.sesi_id, santriId, "Otomatis: santri sudah scan masuk gerbang", oleh, olehNama),
+		]),
+	);
 }
 
 export type BarisPresensi = {

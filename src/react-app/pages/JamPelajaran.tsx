@@ -9,12 +9,17 @@ const SEBUTAN_STATUS: Record<string, string> = {
 	alfa: "Alfa",
 	tidak_hadir: "Tidak Hadir",
 };
-// "izin" dan "sakit" sengaja tidak termasuk di sini: keduanya hanya lahir
-// dari modul perizinan/kesehatan (lih. STATUS_SAH di worker), jadi guru
-// tidak punya opsi untuk memilihnya — baris dengan salah satu status itu
-// langsung tampil terkunci di bawah.
-const OPSI_STATUS = ["hadir", "alfa", "tidak_hadir"] as const;
-const STATUS_TERKUNCI = new Set(["sakit", "izin"]);
+// "izin"/"sakit" hanya lahir dari modul perizinan/kesehatan, dan "alfa"
+// hanya boleh berubah lewat scan masuk yang sungguhan (lih. STATUS_SAH +
+// perbaruiAlfaKeHadir di worker) — guru tidak punya opsi untuk ketiganya.
+// Baris dengan salah satu status itu langsung tampil terkunci di bawah,
+// masing-masing dengan pesan yang menjelaskan kenapa.
+const OPSI_STATUS = ["hadir", "tidak_hadir"] as const;
+const PESAN_TERKUNCI: Record<string, string> = {
+	sakit: "Terkunci oleh surat sakit",
+	izin: "Terkunci oleh izin yang disetujui",
+	alfa: "Menunggu santri scan masuk gerbang",
+};
 
 export function JamPelajaran({
 	sesiId,
@@ -150,10 +155,8 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 											Batal
 										</button>
 									</form>
-								) : STATUS_TERKUNCI.has(p.status) ? (
-									<span className="redup daftar-roster__terkunci">
-										{p.status === "sakit" ? "Terkunci oleh surat sakit" : "Terkunci oleh izin yang disetujui"}
-									</span>
+								) : PESAN_TERKUNCI[p.status] ? (
+									<span className="redup daftar-roster__terkunci">{PESAN_TERKUNCI[p.status]}</span>
 								) : ubahId === p.santri_id ? (
 									<div className="daftar-roster__opsi" role="group" aria-label={`Ubah status ${p.santri_nama}`}>
 										{OPSI_STATUS.filter((opsi) => opsi !== p.status).map((opsi) => (
