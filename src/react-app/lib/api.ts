@@ -80,7 +80,12 @@ export type SesiHariIni = {
 	terisi: number;
 };
 
-export type JadwalHariIni = { tanggal: string; hari: number; sesi: SesiHariIni[] };
+export type JadwalHariIni = {
+	tanggal: string;
+	hari: number;
+	sesi: SesiHariIni[];
+	libur: { lembaga_id: string; tanggal: string; keterangan: string | null }[];
+};
 
 export const jadwalHariIni = () => api<JadwalHariIni>("/jadwal-hari-ini");
 
@@ -129,3 +134,56 @@ export const catatPresensi = (tipe: TipeGerbang, badan: BadanScan) =>
 	api<HasilScan>(`/presensi/${tipe}`, { method: "POST", body: JSON.stringify(badan) });
 
 export const cariSantri = (q: string) => api<SantriRingkas[]>(`/santri/cari?q=${encodeURIComponent(q)}`);
+
+// ---- Pembelajaran (admin: hari aktif, libur, jadwal mingguan) ----
+
+export type HariLibur = { id: string; lembaga_id: string; tanggal: string; keterangan: string | null; dibuat_oleh_nama: string };
+export type PengaturanHari = { hari_aktif: number[]; libur: HariLibur[] };
+
+export const ambilPengaturanHari = () => api<PengaturanHari>("/pengaturan/hari");
+export const simpanHariAktif = (hariAktif: number[]) =>
+	api<{ tersimpan: true }>("/pengaturan/hari", { method: "PUT", body: JSON.stringify({ hari_aktif: hariAktif }) });
+export const tambahHariLibur = (tanggal: string, keterangan: string) =>
+	api<HariLibur>("/pengaturan/hari/libur", { method: "POST", body: JSON.stringify({ tanggal, keterangan }) });
+export const hapusHariLibur = (tanggal: string) =>
+	api<{ dihapus: true }>(`/pengaturan/hari/libur/${tanggal}`, { method: "DELETE" });
+
+export type KelasRingkas = { id: string; nama: string; jumlah_anggota: number };
+export const ambilKelas = () => api<KelasRingkas[]>("/pengaturan/kelas");
+
+export type GuruRingkas = { id: string; nama_lengkap: string; peran_code: string };
+export const ambilGuru = () => api<GuruRingkas[]>("/pengaturan/guru");
+
+export type BarisJadwalAdmin = {
+	id: string;
+	kelas_id: string;
+	kelas_nama: string;
+	hari: number;
+	jam_ke: number;
+	mapel: string;
+	mulai: string;
+	selesai: string;
+	guru_id: string | null;
+	guru_nama: string | null;
+};
+
+export type BadanJadwalAdmin = {
+	kelas_id: string;
+	hari: number;
+	mapel: string;
+	mulai: string;
+	selesai: string;
+	guru_id: string | null;
+};
+
+export const ambilJadwalAdmin = (kelasId: string, hari: number) =>
+	api<BarisJadwalAdmin[]>(`/pengaturan/jadwal?kelas_id=${encodeURIComponent(kelasId)}&hari=${hari}`);
+
+export const tambahJadwalAdmin = (badan: BadanJadwalAdmin) =>
+	api<BarisJadwalAdmin>("/pengaturan/jadwal", { method: "POST", body: JSON.stringify(badan) });
+
+export const ubahJadwalAdmin = (id: string, badan: BadanJadwalAdmin) =>
+	api<BarisJadwalAdmin>(`/pengaturan/jadwal/${id}`, { method: "PATCH", body: JSON.stringify(badan) });
+
+export const hapusJadwalAdmin = (id: string) =>
+	api<{ dihapus: true }>(`/pengaturan/jadwal/${id}`, { method: "DELETE" });

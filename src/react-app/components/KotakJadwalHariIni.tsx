@@ -34,7 +34,12 @@ export function KotakJadwalHariIni({ onBukaAbsen }: { onBukaAbsen: (sesiId: stri
 			<h2 id="judul-jadwal">Jam Pelajaran Hari Ini</h2>
 			{memuat && <p className="redup">Memuat jadwal…</p>}
 			{galat && <p className="galat-kolom">{galat}</p>}
-			{!memuat && !galat && data?.sesi.length === 0 && (
+			{!memuat && !galat && data && data.libur.length > 0 && (
+				<p className="redup">
+					Hari ini libur{data.libur[0].keterangan ? `: ${data.libur[0].keterangan}` : ""}.
+				</p>
+			)}
+			{!memuat && !galat && data && data.libur.length === 0 && data.sesi.length === 0 && (
 				<p className="redup">Tidak ada jadwal mengajar untuk hari ini.</p>
 			)}
 			{!memuat && !galat && data && data.sesi.length > 0 && (

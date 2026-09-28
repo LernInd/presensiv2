@@ -1,4 +1,5 @@
 import { zona } from "./env";
+import { liburPadaTanggal, type HariLibur } from "./hariLibur";
 import type { Orang } from "./pengguna";
 import { hariLokal, tanggalLokal } from "./waktu";
 
@@ -42,15 +43,23 @@ function placeholder(n: number): string {
 export async function jadwalHariIni(
 	env: Env,
 	orang: Orang,
-): Promise<{ tanggal: string; hari: number; sesi: SesiHariIni[] }> {
+): Promise<{ tanggal: string; hari: number; sesi: SesiHariIni[]; libur: HariLibur[] }> {
 	const zonaPakai = zona(env); // penyederhanaan: satu zona untuk seluruh lembaga
 	const sekarang = new Date();
 	const tanggal = tanggalLokal(sekarang, zonaPakai);
 	const hari = hariLokal(sekarang, zonaPakai);
 
-	const lembagaIds = orang.lembagaBoleh.map((l) => l.id);
-	if (lembagaIds.length === 0) return { tanggal, hari, sesi: [] };
+	const semuaLembagaIds = orang.lembagaBoleh.map((l) => l.id);
+	if (semuaLembagaIds.length === 0) return { tanggal, hari, sesi: [], libur: [] };
 	const namaLembaga = new Map(orang.lembagaBoleh.map((l) => [l.id, l.nama]));
+
+	// Tanggal libur manual mengalahkan jadwal mingguan — tidak ada sesi yang
+	// diturunkan untuk lembaga yang sedang libur hari ini.
+	const liburPerLembaga = await Promise.all(semuaLembagaIds.map((id) => liburPadaTanggal(env, id, tanggal)));
+	const libur = liburPerLembaga.filter((l): l is HariLibur => l !== null);
+	const liburIds = new Set(libur.map((l) => l.lembaga_id));
+	const lembagaIds = semuaLembagaIds.filter((id) => !liburIds.has(id));
+	if (lembagaIds.length === 0) return { tanggal, hari, sesi: [], libur };
 
 	const { results: jadwal } = await env.DB.prepare(
 		`select id, lembaga_id, kelas_id, kelas_nama, mapel, jam_ke, mulai, selesai, guru_id, guru_nama
@@ -100,5 +109,5 @@ export async function jadwalHariIni(
 		.bind(tanggal, orang.uid, ...lembagaIds)
 		.all<SesiHariIni>();
 
-	return { tanggal, hari, sesi };
+	return { tanggal, hari, sesi, libur };
 }

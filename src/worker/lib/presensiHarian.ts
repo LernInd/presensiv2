@@ -1,3 +1,4 @@
+import { liburPadaTanggal } from "./hariLibur";
 import { ambilPengaturan } from "./pengaturanLembaga";
 import { kuncianStatus } from "./pembelajaran";
 import { GagalRute } from "./galat";
@@ -102,6 +103,14 @@ export async function siapkanScan(env: Env, token: string, orang: Orang, tipe: T
 
 	if (!hariAktifBerlaku(pengaturan.hari_aktif, hari)) {
 		return { diblokir: true, alasan: "Hari ini bukan hari aktif untuk lembaga ini", santri: ringkas };
+	}
+	const libur = await liburPadaTanggal(env, lembagaId, tanggal);
+	if (libur) {
+		return {
+			diblokir: true,
+			alasan: `Hari ini libur${libur.keterangan ? `: ${libur.keterangan}` : ""}`,
+			santri: ringkas,
+		};
 	}
 
 	// Dua hal mengalahkan hasil pindai: surat sakit dan izin yang sudah

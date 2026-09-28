@@ -72,3 +72,15 @@ export type KodePeranPresensi = keyof typeof PERAN_PRESENSI;
 export function peranPresensi(kode: string): kode is KodePeranPresensi {
 	return Object.hasOwn(PERAN_PRESENSI, kode);
 }
+
+// Dipakai layar admin (Pembelajaran) untuk mencari daftar guru satu lembaga:
+// kode peran guru diturunkan dari peran_lembaga sendiri (bukan ditebak dari
+// pola nama seperti "madin" vs "diniyah" yang memang tidak selalu sama).
+export async function kodePeranGuruDiLembaga(env: Env, lembagaId: string): Promise<string[]> {
+	const { results } = await env.DB.prepare(
+		"select distinct peran_code from peran_lembaga where lembaga_id = ? and tingkat = 'guru'",
+	)
+		.bind(lembagaId)
+		.all<{ peran_code: string }>();
+	return results.map((r) => r.peran_code);
+}

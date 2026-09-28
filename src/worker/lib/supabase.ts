@@ -86,6 +86,30 @@ export function santriDiLembaga(env: Env, token: string, lembagaId: string) {
 	);
 }
 
+export type Kelas = { id: string; nama: string; jumlah_anggota: number };
+
+export function kelasDiLembaga(env: Env, token: string, lembagaId: string) {
+	return ambil<Kelas[]>(
+		env,
+		`v_kelas?lembaga_id=eq.${uuid(lembagaId, "lembaga_id")}&select=id,nama,jumlah_anggota&order=nama`,
+		token,
+	);
+}
+
+export type Guru = { id: string; nama_lengkap: string; peran_code: string };
+
+// Filter di sini adalah SUMBER KEBENARAN "guru lembaga ini" — daftar kode
+// peran diambil dari peran_lembaga di D1 (bukan ditebak dari pola nama
+// seperti "gurumadin" vs "gurudiniyah"), lalu dipakai menyaring v_guru_presensi.
+export function guruDenganPeran(env: Env, token: string, kodePeran: string[]) {
+	if (kodePeran.length === 0) return Promise.resolve<Guru[]>([]);
+	return ambil<Guru[]>(
+		env,
+		`v_guru_presensi?peran_code=in.(${kodePeran.map((k) => encodeURIComponent(k)).join(",")})&select=id,nama_lengkap,peran_code&order=nama_lengkap`,
+		token,
+	);
+}
+
 export function urlBerkas(env: Env, bucket: string, path: string | null): string | null {
 	return path
 		? `${env.SUPABASE_URL}/storage/v1/object/public/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`
