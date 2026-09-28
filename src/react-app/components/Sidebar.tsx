@@ -22,21 +22,37 @@ const KATEGORI: Kategori[] = [
 	},
 ];
 
+// Khusus tingkat admin: mengatur hari aktif/libur dan jadwal mingguan.
+// Labelnya sengaja "Jadwal Pelajaran" (bukan "Jam Pelajaran" seperti milik
+// guru di atas) supaya tidak tertukar dengan layar ambil-presensi guru,
+// walau keduanya bicara soal jadwal.
+const KATEGORI_ADMIN: Kategori = {
+	label: "Pembelajaran",
+	butir: [
+		{ label: "Hari", tujuan: "/hari" },
+		{ label: "Jadwal Pelajaran", tujuan: "/jadwalpelajaran" },
+	],
+};
+
 export function Sidebar({
 	pathname,
 	navigasi,
 	terbuka,
 	onTutup,
+	tingkat,
 }: {
 	pathname: string;
 	navigasi: (tujuan: string) => void;
 	terbuka: boolean;
 	onTutup: () => void;
+	tingkat: string;
 }) {
 	function pergi(tujuan: string) {
 		navigasi(tujuan);
 		onTutup();
 	}
+
+	const kategori = tingkat === "admin" ? [...KATEGORI, KATEGORI_ADMIN] : KATEGORI;
 
 	return (
 		<>
@@ -50,7 +66,7 @@ export function Sidebar({
 				>
 					Dashboard
 				</button>
-				{KATEGORI.map((k) => (
+				{kategori.map((k) => (
 					<div className="sidebar__kategori" key={k.label}>
 						<span className="sidebar__label">{k.label}</span>
 						{k.butir.map((b) => (

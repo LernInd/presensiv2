@@ -6,6 +6,8 @@ import { Topbar } from "./components/Topbar";
 import { useRute, type Rute } from "./lib/router";
 import { GagalApi, keluar, setPeranAktif, saya as ambilSaya, type Saya } from "./lib/api";
 import { Dashboard } from "./pages/Dashboard";
+import { Hari } from "./pages/Hari";
+import { JadwalPelajaran } from "./pages/JadwalPelajaran";
 import { JamPelajaran } from "./pages/JamPelajaran";
 import { MasukGuru } from "./pages/MasukGuru";
 import { MasukSiswa } from "./pages/MasukSiswa";
@@ -53,6 +55,10 @@ function Halaman({
 			return <MasukSiswa />;
 		case "/pulangsiswa":
 			return <PulangSiswa />;
+		case "/hari":
+			return <Hari />;
+		case "/jadwalpelajaran":
+			return <JadwalPelajaran />;
 		case "/jampelajaran":
 			return (
 				<JamPelajaran
@@ -120,6 +126,9 @@ function App() {
 	}
 
 	const { saya, peranAktif } = keadaan;
+	// Tingkat peran yang SEDANG aktif, bukan saya.tingkat (yang dihitung dari
+	// gabungan seluruh peran saat login, sebelum satu peran dipilih).
+	const tingkatAktif = saya.peran.find((p) => p.kode === peranAktif)?.tingkat ?? saya.tingkat;
 	return (
 		<div className="app-shell app-shell--sidebar">
 			<Topbar
@@ -137,6 +146,7 @@ function App() {
 					navigasi={navigasi}
 					terbuka={sidebarTerbuka}
 					onTutup={() => setSidebarTerbuka(false)}
+					tingkat={tingkatAktif}
 				/>
 				<main className="app-shell__konten">
 					<Halaman rute={rute} saya={saya} peranAktif={peranAktif} navigasi={navigasi} />

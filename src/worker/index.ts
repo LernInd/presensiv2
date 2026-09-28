@@ -6,6 +6,7 @@ import { ringkasOrang } from "./lib/pengguna";
 import { pemanggil, type AppEnv } from "./middleware/pemanggil";
 import { masuk } from "./routes/masuk";
 import { pelajaran } from "./routes/pelajaran";
+import { pengaturanPembelajaran } from "./routes/pengaturanPembelajaran";
 import { presensiHarian } from "./routes/presensiHarian";
 
 const app = new Hono<AppEnv>().basePath("/api");
@@ -45,6 +46,7 @@ app.get("/saya", (c) => c.json(ringkasOrang(c.env, c.get("orang"))));
 
 app.route("/", pelajaran);
 app.route("/", presensiHarian);
+app.route("/", pengaturanPembelajaran);
 
 app.notFound((c) => c.json({ error: "Jalur tidak dikenal" }, 404));
 

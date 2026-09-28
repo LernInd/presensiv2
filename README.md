@@ -90,6 +90,16 @@ presensi-db produksi. Isi data uji lokal dengan `npx wrangler d1 execute presens
 | `POST /api/presensi/:tipe/pratinjau` | cookie (guru) | `:tipe` = `masuk`/`pulang`; pratinjau QR/manual sebelum dicatat — jalan yang sama dengan pencatatan |
 | `POST /api/presensi/:tipe` | cookie (guru) | catat presensi gerbang, idempoten (`on conflict do nothing` + PK) |
 | `GET /api/santri/cari?q=` | cookie (guru) | pencarian manual, minimal 3 huruf, 5 hasil paling relevan, dibatasi lembaga aktif |
+| `GET /api/pengaturan/hari` | cookie (admin) | hari aktif per minggu + daftar tanggal libur lembaga |
+| `PUT /api/pengaturan/hari` | cookie (admin) | simpan hari aktif (daftar 1–7) |
+| `POST /api/pengaturan/hari/libur` | cookie (admin) | tambah/ubah tanggal libur (upsert per tanggal) |
+| `DELETE /api/pengaturan/hari/libur/:tanggal` | cookie (admin) | hapus tanggal libur |
+| `GET /api/pengaturan/kelas` | cookie (admin) | daftar kelas lembaga (untuk dropdown) |
+| `GET /api/pengaturan/guru` | cookie (admin) | daftar guru lembaga (untuk penanggung jawab) |
+| `GET /api/pengaturan/jadwal?kelas_id=&hari=` | cookie (admin) | jadwal satu kelas pada satu hari |
+| `POST /api/pengaturan/jadwal` | cookie (admin) | tambah baris jadwal (409 bila bentrok jam di kelas+hari yang sama) |
+| `PATCH /api/pengaturan/jadwal/:id` | cookie (admin) | ubah baris jadwal |
+| `DELETE /api/pengaturan/jadwal/:id` | cookie (admin) | hapus baris jadwal |
 
 Rute baru yang butuh login cukup didaftarkan setelah `app.use("*", pemanggil)`
 di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`peran`, `lembagaBoleh`,
@@ -113,15 +123,25 @@ src/worker/
   lib/waktu.ts             tanggal/hari/jam dari zona lembaga, bukan UTC D1
   lib/jadwal.ts            terapkan jadwal_pelajaran → sesi_pembelajaran hari ini
   lib/pembelajaran.ts      bolehMembukaSesi, seed roster, kunci sakit/izin, validasi status
-  lib/pengaturanLembaga.ts baca jam gerbang/hari aktif per lembaga
+  lib/pengaturanLembaga.ts baca/simpan jam gerbang/hari aktif per lembaga
   lib/presensiHarian.ts    siapkanScan (satu jalan pratinjau+catat), idempoten
   lib/pencarianSantri.ts   pencarian ≥3 huruf, skor relevansi, top 5, dibatasi lembaga
+  lib/hariLibur.ts         CRUD tanggal libur per lembaga (tabel baru, additive)
+  lib/validasiPembelajaran.ts validasi daftar-putih hari aktif/libur/baris jadwal
+  lib/jadwalPelajaranAdmin.ts CRUD jadwal_pelajaran admin; jam_ke selalu diturunkan
+                           ulang dari urutan `mulai` lewat hapus-lalu-sisip satu grup
+                           (lembaga_id, kelas_id, hari) dalam satu `DB.batch()`
+  routes/pengaturanPembelajaran.ts /pengaturan/hari, /pengaturan/jadwal, dst.
+                           — khusus tingkat admin (`lembagaAdmin()`), nama
+                           kelas/guru dari klien selalu diverifikasi ulang ke
+                           Supabase, tidak pernah dipercaya begitu saja
 src/react-app/
   components/FormMasuk.tsx form login, validasi per kolom, jeda 2 dtk, pop-up
   components/Dialog.tsx    pop-up <dialog> native (kredensial salah, batas percobaan)
   components/PilihPeran.tsx halaman pilih peran, tampil saat peran > 1
   components/Topbar.tsx    brand, identitas pengguna, keluar, tombol menu (mobile)
-  components/Sidebar.tsx   navigasi: Guru, Siswa, Pelajaran (off-canvas di ponsel)
+  components/Sidebar.tsx   navigasi: Guru, Siswa, Pelajaran, + Pembelajaran
+                           khusus tingkat admin (off-canvas di ponsel)
   components/KotakJadwalHariIni.tsx box jadwal, dipakai Dashboard & Jam Pelajaran
   components/HalamanBelumTersedia.tsx placeholder untuk rute yang belum dibangun
   lib/router.ts            router minimal berbasis History API (tanpa dependensi)
@@ -129,6 +149,9 @@ src/react-app/
   pages/JamPelajaran.tsx   daftar sesi hari ini + roster ambil-presensi per sesi
   pages/MasukGuru.tsx, PulangGuru.tsx  placeholder — fungsi baru, belum dibangun
   pages/MasukSiswa.tsx, PulangSiswa.tsx  bungkus tipis PresensiSiswaHalaman
+  pages/Hari.tsx           admin: toggle hari aktif + CRUD tanggal libur
+  pages/JadwalPelajaran.tsx admin: pilih kelas + tab hari, CRUD jam pelajaran
+                           (mapel, jam mulai/selesai, penanggung jawab)
   components/PresensiSiswaHalaman.tsx  toggle Pindai QR / Absen Manual + pop-up konfirmasi
   components/PemindaiQr.tsx    kamera + BarcodeDetector bawaan (tanpa dependensi jsQR)
   components/PencarianSiswa.tsx  input ≥3 huruf, daftar 5 hasil dari server
@@ -149,6 +172,8 @@ src/react-app/
 | Guru | Masuk / Pulang | `/masukguru`, `/pulangguru` | placeholder — fungsi baru, belum dibangun |
 | Siswa | Masuk / Pulang | `/masuksiswa`, `/pulangsiswa` | **Pindai QR** (utama) atau **Absen Manual** (cadangan), keduanya lewat pop-up konfirmasi |
 | Pelajaran | Jam Pelajaran | `/jampelajaran`, `/jampelajaran?sesi=<id>` | daftar sesi hari ini + ambil presensi kelas |
+| Pembelajaran *(khusus admin)* | Hari | `/hari` | hari aktif per minggu + tanggal libur manual |
+| Pembelajaran *(khusus admin)* | Jadwal Pelajaran | `/jadwalpelajaran` | atur mapel/penanggung jawab/jam per kelas per hari |
 
 Rute-rute ini adalah URL sungguhan (bukan hash), ditangani `lib/router.ts` di
 sisi klien. Reload langsung di jalur mana pun tetap berfungsi karena Worker
@@ -182,10 +207,10 @@ selain `/api/*`.
 - **Pindai QR**: kode `SANTRI:<uuid>` dibaca via `BarcodeDetector` bawaan
   peramban (tanpa dependensi `jsQR` tambahan). Kode sama diabaikan 3 detik,
   dan kamera dijeda selama pop-up konfirmasi terbuka.
-- **Absen Manual**: pencarian nama minimal 3 huruf, di-debounce 300ms, server
-  mengembalikan maksimal 5 hasil terurut skor relevansi (cocok persis → awalan
-  nama → awalan salah satu kata → mengandung kata), dibatasi ke lembaga peran
-  aktif saja.
+- **Absen Manual**: pencarian nama minimal 3 huruf, dipicu tombol/ikon cari
+  (bukan otomatis saat mengetik), server mengembalikan maksimal 5 hasil
+  terurut skor relevansi (cocok persis → awalan nama → awalan salah satu
+  kata → mengandung kata), dibatasi ke lembaga peran aktif saja.
 - **"GuruSMK hanya bisa scan siswa SMK, dst."** ditegakkan di server
   (`siapkanScan`), bukan cuma di layar pencarian — kartu QR dari lembaga lain
   pun ditolak 403, karena santri dicocokkan ke `orang.lembagaBoleh` sebelum
@@ -197,6 +222,31 @@ selain `/api/*`.
 - Presensi gerbang tidak pernah menulis status `sakit`/`izin` — bila santri
   sedang sakit/izin, tombol Konfirmasi tidak muncul sama sekali (wilayah itu
   milik modul kesehatan/perizinan, belum dibangun di sini).
+
+### Pembelajaran — khusus tingkat admin (`adminpresensi{smk,mts,ma,madin}`)
+
+- **Hari**: toggle hari aktif (1–7, disimpan sebagai CSV di
+  `pengaturan_lembaga.hari_aktif`) + tabel tanggal libur manual di tabel baru
+  `hari_libur` (additive — bukan mengubah tabel lama, hanya dibaca-tulis
+  presensiv2). Tanggal libur mengalahkan hari aktif mingguan: `jadwal-hari-ini`
+  dan `siapkanScan` (pindai gerbang) sama-sama memeriksa `hari_libur` sebelum
+  menerapkan jadwal/menerima presensi hari itu.
+- **Jadwal Pelajaran**: pilih kelas lalu tab hari (Senin–Minggu), CRUD baris
+  `jadwal_pelajaran` (mapel, jam mulai/selesai, penanggung jawab opsional).
+  Peran guru penanggung jawab diambil dari `peran_lembaga.tingkat='guru'` milik
+  lembaga yang sama (bukan tebakan pola nama peran, karena akhiran peran admin
+  `madin` tidak cocok teks dengan akhiran peran guru `diniyah`).
+  - Jam tumpang tindih di kelas+hari yang sama ditolak 409 sebelum ditulis.
+  - `jam_ke` tidak pernah datang dari klien — selalu diturunkan ulang dari
+    urutan `mulai` sesudah tiap tambah/ubah/hapus, dengan menulis ulang
+    **seluruh isi grup** (lembaga_id, kelas_id, hari) dalam satu
+    hapus-lalu-sisip `DB.batch()`. Ini sengaja dipilih setelah pengujian
+    langsung ke D1 lokal menemukan bahwa UPDATE bertahap atau nilai
+    sementara di luar `CHECK (jam_ke between 1 and 20)` sama-sama bisa
+    menabrak constraint saat dua baris perlu bertukar nomor.
+  - Karena penomoran ulang bisa mengubah `jam_ke` baris lain yang sedang
+    tampil, layar mengambil ulang seluruh daftar hari itu dari server
+    sesudah tiap mutasi alih-alih menambal satu baris secara lokal.
 
 ## Deploy
 
