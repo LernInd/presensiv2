@@ -200,25 +200,42 @@ selain `/api/*`.
   dan dicocokkan baris-per-baris sebelum ditukar di produksi) untuk menambah
   nilai ini; `status_awal` sengaja **tidak** ikut diubah karena tidak pernah
   diisi otomatis dengan "tidak_hadir".
-- Guru tidak bisa menandai `sakit` (hanya lahir dari surat modul kesehatan).
-  Mengubah status ke selain status awal mewajibkan keterangan — ditegakkan
-  CHECK di D1 dan diperiksa ulang di `lib/pembelajaran.ts` untuk pesan yang ramah.
+- Guru **hanya punya dua opsi**: `hadir` dan `tidak_hadir` (`STATUS_SAH` di
+  worker / `OPSI_STATUS` di layar). `sakit` dan `izin` dikeluarkan karena
+  hanya boleh lahir dari modul kesehatan/perizinan (surat sakit /
+  `izin_santri` yang disetujui); `alfa` juga dikeluarkan karena satu-satunya
+  jalan keluar dari alfa adalah santri **benar-benar scan masuk**, bukan
+  guru menekan tombol. Begitu status hari itu sakit/izin/alfa, baris santri
+  tampil terkunci (tanpa tombol "Ubah status") dengan pesan yang menjelaskan
+  kenapa. Mengubah status ke selain status awal tetap mewajibkan
+  keterangan — ditegakkan CHECK di D1 dan diperiksa ulang di
+  `lib/pembelajaran.ts` untuk pesan yang ramah.
+- `perbaruiAlfaKeHadir()` (worker) menutup celah "roster sudah disemai alfa
+  sebelum santri sempat scan": dipanggil sesudah `presensi_harian` tipe
+  masuk berhasil dicatat, ia memperbaiki baris `presensi_pembelajaran` hari
+  itu yang **masih murni alfa** (`status = status_awal = 'alfa'`) jadi
+  hadir, lengkap dengan jejak di `riwayat_presensi`. Baris yang sudah pernah
+  diubah guru secara manual (dari sebelum aturan ini berlaku) sengaja tidak
+  ditimpa.
 - Status yang terkunci surat sakit/izin disetujui **dicek ulang ke tabel
-  sungguhan** saat PATCH (bukan hanya `status_awal` yang bisa basi), dan
-  ditolak 409.
+  sungguhan** saat PATCH (bukan hanya `status_awal` yang bisa basi, dan
+  bukan hanya lewat daftar opsi di layar), dan ditolak 409 — pertahanan
+  berlapis di server, bukan cuma UI yang menyembunyikan tombolnya.
 - Tiap perubahan nyata menulis `presensi_pembelajaran` + `riwayat_presensi`
   dalam satu `DB.batch()`, supaya baris dan jejaknya tidak pernah menyimpang.
 - Di layar (`pages/JamPelajaran.tsx`), tiap santri tampil sebagai nama +
-  lencana status ringkas; tombol "Ubah status" baru memunculkan pilihan lain
-  saat ditekan (bukan selalu menampilkan semua tombol status berjajar),
-  supaya tetap rapi di layar ponsel walau sekarang ada 4 pilihan.
+  lencana status ringkas; tombol "Ubah status" baru memunculkan opsi lain
+  saat ditekan (bukan selalu menampilkan semua tombol status berjajar) —
+  hanya untuk status hadir/tidak_hadir; baris sakit/izin/alfa tidak punya
+  tombol ini sama sekali, langsung tampil terkunci dengan pesannya
+  masing-masing.
 
 #### Tabel keterangan status
 
 | Status | Kapan diberikan | Sumber | Bisa diubah guru? |
 | --- | --- | --- | --- |
-| **Hadir** | Sudah scan masuk hari itu (termasuk yang terlambat) | Otomatis dari `presensi_harian` (scan gerbang) | Ya |
-| **Alfa** | Belum scan masuk sama sekali hari itu | Otomatis (fallback) | Ya |
+| **Hadir** | Sudah scan masuk hari itu (termasuk yang terlambat) | Otomatis dari `presensi_harian` (scan gerbang), atau dikembalikan manual dari Tidak Hadir | Ya (kembali dari Tidak Hadir saja) |
+| **Alfa** | Belum scan masuk sama sekali hari itu | Otomatis (fallback) | **Tidak** — terkunci, hanya berubah lewat scan masuk sungguhan |
 | **Tidak Hadir** | Sudah scan masuk di gerbang, tapi tidak hadir di pelajaran ini | Dipilih manual lewat "Ubah status" | Ya |
 | **Sakit** | Punya surat sakit aktif yang disetujui | Otomatis, hanya dari modul kesehatan | Tidak — terkunci |
 | **Izin** | Izin disetujui ndalem (`izin_santri`) | Otomatis, hanya dari aplikasi perizinan | Tidak — terkunci |

@@ -9,7 +9,17 @@ const SEBUTAN_STATUS: Record<string, string> = {
 	alfa: "Alfa",
 	tidak_hadir: "Tidak Hadir",
 };
-const OPSI_STATUS = ["hadir", "izin", "alfa", "tidak_hadir"] as const;
+// "izin"/"sakit" hanya lahir dari modul perizinan/kesehatan, dan "alfa"
+// hanya boleh berubah lewat scan masuk yang sungguhan (lih. STATUS_SAH +
+// perbaruiAlfaKeHadir di worker) — guru tidak punya opsi untuk ketiganya.
+// Baris dengan salah satu status itu langsung tampil terkunci di bawah,
+// masing-masing dengan pesan yang menjelaskan kenapa.
+const OPSI_STATUS = ["hadir", "tidak_hadir"] as const;
+const PESAN_TERKUNCI: Record<string, string> = {
+	sakit: "Terkunci oleh surat sakit",
+	izin: "Terkunci oleh izin yang disetujui",
+	alfa: "Menunggu santri scan masuk gerbang",
+};
 
 export function JamPelajaran({
 	sesiId,
@@ -145,8 +155,8 @@ function Roster({ sesiId, onKembali }: { sesiId: string; onKembali: () => void }
 											Batal
 										</button>
 									</form>
-								) : p.status === "sakit" ? (
-									<span className="redup daftar-roster__terkunci">Terkunci oleh surat sakit</span>
+								) : PESAN_TERKUNCI[p.status] ? (
+									<span className="redup daftar-roster__terkunci">{PESAN_TERKUNCI[p.status]}</span>
 								) : ubahId === p.santri_id ? (
 									<div className="daftar-roster__opsi" role="group" aria-label={`Ubah status ${p.santri_nama}`}>
 										{OPSI_STATUS.filter((opsi) => opsi !== p.status).map((opsi) => (
