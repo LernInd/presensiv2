@@ -156,7 +156,8 @@ src/react-app/
   components/PemindaiQr.tsx    kamera + BarcodeDetector bawaan (tanpa dependensi jsQR)
   components/PencarianSiswa.tsx  input ≥3 huruf, daftar 5 hasil dari server
   components/KonfirmasiScan.tsx  pop-up: foto, nama, kelas, status, tombol Konfirmasi/Batal
-  lib/api.ts, validasi.ts  fetch same-origin, aturan validasi (cermin server)
+  lib/api.ts, validasi.ts  fetch same-origin, aturan validasi (cermin server);
+                           cache jadwal-hari-ini di sessionStorage per tanggal WIB
 ```
 
 ## Alur setelah login
@@ -186,6 +187,18 @@ selain `/api/*`.
 - `jadwal_pelajaran` → `sesi_pembelajaran` diterapkan lazy saat guru membuka
   dashboard/Jam Pelajaran hari itu (`on conflict do nothing` + indeks unik
   parsial `sesi_unik_idx`), bukan lewat cron — aman dipanggil berkali-kali.
+- Jawaban `GET /jadwal-hari-ini` disimpan di **sessionStorage** sisi klien
+  (`jadwalHariIni()` di `lib/api.ts`), berkunci tanggal WIB + peran aktif —
+  jadi "reset" otomatis begitu lewat tengah malam WIB (bukan 24 jam bergulir
+  dari saat fetch), dan ikut dibuang saat pengguna menekan Keluar
+  (`bersihkanCacheJadwal()`). Ini **cache di level aplikasi, bukan header
+  Cache-Control** di server — jawaban API tetap `no-store` seperti semula
+  (lih. `index.ts`, "jawaban API bergantung pada sesi, bukan URL"), supaya
+  tidak ada risiko jadwal satu pengguna kebaca lewat cache HTTP oleh
+  pengguna lain di perangkat/tab yang sama sesudah logout. Konsekuensinya:
+  perubahan jadwal oleh admin (`/jadwalpelajaran`) atau `terisi` sesi yang
+  berubah dari aksi guru lain di hari yang sama tidak langsung terlihat
+  sampai tab ditutup/dibuka ulang atau lewat tengah malam.
 - Roster kelas disemai sekali dari `v_santri` (Supabase) + status hari itu:
   **sakit** (surat aktif) mengalahkan **izin** (disetujui ndalem), keduanya
   mengalahkan hasil pindai **masuk** dari `presensi_harian`; selain itu **alfa**.
