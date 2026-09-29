@@ -79,9 +79,9 @@ export function santriDiKelas(env: Env, token: string, kelasId: string) {
 }
 
 export function santriDiLembaga(env: Env, token: string, lembagaId: string) {
-	return ambil<Pick<Santri, "id" | "nama_lengkap" | "kamar_nama">[]>(
+	return ambil<Pick<Santri, "id" | "nama_lengkap" | "kamar_nama" | "kelas_id" | "kelas">[]>(
 		env,
-		`v_santri?lembaga_id=cs.{${uuid(lembagaId, "lembaga_id")}}&select=id,nama_lengkap,kamar_nama&order=nama_lengkap`,
+		`v_santri?lembaga_id=cs.{${uuid(lembagaId, "lembaga_id")}}&select=id,nama_lengkap,kamar_nama,kelas_id,kelas&order=nama_lengkap`,
 		token,
 	);
 }

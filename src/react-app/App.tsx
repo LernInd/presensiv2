@@ -13,6 +13,8 @@ import { MasukGuru } from "./pages/MasukGuru";
 import { MasukSiswa } from "./pages/MasukSiswa";
 import { PulangGuru } from "./pages/PulangGuru";
 import { PulangSiswa } from "./pages/PulangSiswa";
+import { Rekap } from "./pages/Rekap";
+import { TugasDinas } from "./pages/TugasDinas";
 
 type Keadaan =
 	| { tahap: "memuat" }
@@ -37,29 +39,48 @@ function Halaman({
 	rute,
 	saya,
 	peranAktif,
+	tingkat,
 	navigasi,
 }: {
 	rute: Rute;
 	saya: Saya;
 	peranAktif: string | null;
+	tingkat: string;
 	navigasi: (tujuan: string) => void;
 }) {
 	const bukaAbsen = (sesiId: string) => navigasi(`/jampelajaran?sesi=${encodeURIComponent(sesiId)}`);
 
+	const beranda = <Dashboard saya={saya} peranAktif={peranAktif} onBukaAbsen={bukaAbsen} />;
+
 	switch (rute.pathname) {
+		// Presensi gerbang hanya untuk guru: admin → jatuh ke Dashboard.
 		case "/masukguru":
+			if (tingkat === "admin") return beranda;
 			return <MasukGuru />;
 		case "/pulangguru":
+			if (tingkat === "admin") return beranda;
 			return <PulangGuru />;
 		case "/masuksiswa":
+			if (tingkat === "admin") return beranda;
 			return <MasukSiswa />;
 		case "/pulangsiswa":
+			if (tingkat === "admin") return beranda;
 			return <PulangSiswa />;
+		// Halaman khusus admin: bukan admin → jatuh ke Dashboard.
+		case "/tugasdinas":
+			if (tingkat !== "admin") return beranda;
+			return <TugasDinas />;
+		case "/rekap":
+			if (tingkat !== "admin") return beranda;
+			return <Rekap />;
 		case "/hari":
+			if (tingkat !== "admin") return <Dashboard saya={saya} peranAktif={peranAktif} onBukaAbsen={bukaAbsen} />;
 			return <Hari />;
 		case "/jadwalpelajaran":
+			if (tingkat !== "admin") return <Dashboard saya={saya} peranAktif={peranAktif} onBukaAbsen={bukaAbsen} />;
 			return <JadwalPelajaran />;
 		case "/jampelajaran":
+			if (tingkat === "admin") return beranda;
 			return (
 				<JamPelajaran
 					sesiId={rute.params.get("sesi")}
@@ -95,6 +116,9 @@ function App() {
 		try {
 			await keluar();
 		} finally {
+			// URL ikut direset: tanpa ini, pengguna berikutnya yang masuk mendarat
+			// di halaman terakhir pengguna sebelumnya, bukan Dashboard.
+			navigasi("/");
 			setPeranAktif(null);
 			setKeluarProses(false);
 			setKeadaan({ tahap: "masuk" });
@@ -149,7 +173,7 @@ function App() {
 					tingkat={tingkatAktif}
 				/>
 				<main className="app-shell__konten">
-					<Halaman rute={rute} saya={saya} peranAktif={peranAktif} navigasi={navigasi} />
+					<Halaman rute={rute} saya={saya} peranAktif={peranAktif} tingkat={tingkatAktif} navigasi={navigasi} />
 				</main>
 			</div>
 		</div>

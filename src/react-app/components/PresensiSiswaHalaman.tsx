@@ -22,12 +22,11 @@ export function PresensiSiswaHalaman({ tipe, judul }: { tipe: TipeGerbang; judul
 	const [hasil, setHasil] = useState<HasilScan | null>(null);
 	const [proses, setProses] = useState(false);
 	const [galat, setGalat] = useState<string | null>(null);
-	const [pesan, setPesan] = useState<string | null>(null);
 
 	const dialogTerbuka = badan !== null;
 
 	async function mulaiPratinjau(b: BadanScan, santriSementara?: SantriRingkas) {
-		setPesan(null);
+		setGalat(null);
 		setBadan(b);
 		// Tampilkan identitas secepat yang diketahui (dari hasil pencarian)
 		// supaya popup tidak kosong menunggu jaringan; ditimpa hasil sungguhan.
@@ -49,10 +48,7 @@ export function PresensiSiswaHalaman({ tipe, judul }: { tipe: TipeGerbang; judul
 		if (!badan) return;
 		setProses(true);
 		try {
-			const akhir = await catatPresensi(tipe, badan);
-			if (!akhir.diblokir) {
-				setPesan(`${akhir.santri.nama_lengkap} berhasil dicatat ${tipe}.`);
-			}
+			await catatPresensi(tipe, badan);
 			tutup();
 		} catch (g) {
 			setGalat(g instanceof GagalApi ? g.message : "Gagal menyimpan");
@@ -68,37 +64,37 @@ export function PresensiSiswaHalaman({ tipe, judul }: { tipe: TipeGerbang; judul
 	}
 
 	return (
-		<div className="container">
-			<div className="halaman-judul">
-				<h1>{judul}</h1>
-				<p className="redup">Pindai QR pada kartu santri, atau gunakan absen manual bila kartu tidak tersedia.</p>
-			</div>
+		<div className="container container--lebar">
+			<div className="presensi-kepala">
+				<div className="halaman-judul">
+					<h1>{judul}</h1>
+					<p className="redup">Pindai QR pada kartu santri, atau gunakan absen manual bila kartu tidak tersedia.</p>
+				</div>
 
-			<div className="segmen" role="tablist" aria-label="Cara mencatat presensi">
-				<button
-					type="button"
-					role="tab"
-					aria-selected={mode === "qr"}
-					className={`segmen__tombol ${mode === "qr" ? "segmen__tombol--aktif" : ""}`}
-					onClick={() => setMode("qr")}
-				>
-					Pindai QR
-				</button>
-				<button
-					type="button"
-					role="tab"
-					aria-selected={mode === "manual"}
-					className={`segmen__tombol ${mode === "manual" ? "segmen__tombol--aktif" : ""}`}
-					onClick={() => setMode("manual")}
-				>
-					Absen Manual
-				</button>
+				<div className="segmen" role="tablist" aria-label="Cara mencatat presensi">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={mode === "qr"}
+						className={`segmen__tombol ${mode === "qr" ? "segmen__tombol--aktif" : ""}`}
+						onClick={() => setMode("qr")}
+					>
+						Pindai QR
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={mode === "manual"}
+						className={`segmen__tombol ${mode === "manual" ? "segmen__tombol--aktif" : ""}`}
+						onClick={() => setMode("manual")}
+					>
+						Absen Manual
+					</button>
+				</div>
 			</div>
-
-			{pesan && <p className="pesan-sukses">{pesan}</p>}
-			{galat && <p className="galat-kolom">{galat}</p>}
 
 			<section className="kartu">
+				{galat && <p className="galat-kolom">{galat}</p>}
 				{mode === "qr" ? (
 					<PemindaiQr
 						aktif={!dialogTerbuka}

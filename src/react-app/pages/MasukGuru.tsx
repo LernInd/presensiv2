@@ -1,5 +1,5 @@
-import { HalamanBelumTersedia } from "../components/HalamanBelumTersedia";
+import { PresensiGuruHalaman } from "../components/PresensiGuruHalaman";
 
 export function MasukGuru() {
-	return <HalamanBelumTersedia judul="Guru Masuk" />;
+	return <PresensiGuruHalaman tipe="masuk" judul="Guru Masuk" />;
 }

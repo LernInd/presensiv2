@@ -44,6 +44,7 @@ export function MenuAkun({
 				type="button"
 				className="menu-akun__pemicu"
 				onClick={() => setTerbuka((v) => !v)}
+				aria-label={`Menu akun ${nama}`}
 				aria-haspopup="menu"
 				aria-expanded={terbuka}
 			>

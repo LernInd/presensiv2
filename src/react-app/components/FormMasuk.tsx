@@ -93,18 +93,12 @@ export function FormMasuk({ onMasuk }: { onMasuk: (saya: Saya) => void }) {
 	return (
 		<main className="halaman--login">
 			<div className="masuk-shell">
-				<aside className="masuk-shell__marca" aria-hidden="true">
-					<img src="/icon.svg" alt="" width={40} height={40} />
-					<h1>Presensi</h1>
-					<p>Sistem presensi digital untuk guru dan admin madrasah.</p>
-				</aside>
-
 				<form className="masuk-shell__form" onSubmit={kirim} noValidate>
 					<div className="masuk-shell__form-kepala">
 						<img src="/icon.svg" alt="" width={36} height={36} />
 						<h1>Presensi</h1>
+						<p className="redup">Masuk dengan akun guru atau admin presensi</p>
 					</div>
-					<p className="redup">Masuk dengan akun guru atau admin presensi</p>
 
 					<div className="kolom">
 					<label htmlFor="username">Username</label>

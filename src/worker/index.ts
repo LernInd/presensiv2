@@ -8,6 +8,14 @@ import { masuk } from "./routes/masuk";
 import { pelajaran } from "./routes/pelajaran";
 import { pengaturanPembelajaran } from "./routes/pengaturanPembelajaran";
 import { presensiHarian } from "./routes/presensiHarian";
+import { kedinasan } from "./routes/kedinasan";
+import { presensiGuru } from "./routes/presensiGuru";
+import { rekap } from "./routes/rekap";
+import { hapusFotoGuru } from "./lib/hapusFotoGuru";
+import { catatPulangOtomatis } from "./lib/pulangOtomatis";
+
+// Jadwal cron (lih. wrangler.json → triggers, dalam UTC). 16:00 UTC = 23:00 WIB.
+const CRON_HAPUS_FOTO = "0 16 * * *";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -47,6 +55,9 @@ app.get("/saya", (c) => c.json(ringkasOrang(c.env, c.get("orang"))));
 app.route("/", pelajaran);
 app.route("/", presensiHarian);
 app.route("/", pengaturanPembelajaran);
+app.route("/", rekap);
+app.route("/", kedinasan);
+app.route("/", presensiGuru);
 
 app.notFound((c) => c.json({ error: "Jalur tidak dikenal" }, 404));
 
@@ -59,4 +70,27 @@ app.onError((galat, c) => {
 	return c.json({ error: "Terjadi kesalahan di server" }, 500);
 });
 
-export default app;
+export default {
+	fetch: app.fetch,
+	// Dua cron (lih. wrangler.json → triggers):
+	// - 23:00 WIB: foto presensi guru dihapus dari R2 (koordinat/jam tetap ada).
+	// - 19:00 WIB (selain itu): santri yang sudah scan masuk tetapi tidak scan
+	//   pulang dicatat "tidak tepat waktu".
+	async scheduled(event, env, ctx) {
+		if (event.cron === CRON_HAPUS_FOTO) {
+			ctx.waitUntil(
+				hapusFotoGuru(env).then(
+					(hasil) => console.log("Hapus foto guru", JSON.stringify(hasil)),
+					(galat) => console.error("Hapus foto guru gagal", galat),
+				),
+			);
+			return;
+		}
+		ctx.waitUntil(
+			catatPulangOtomatis(env).then(
+				(hasil) => console.log("Pulang otomatis", JSON.stringify(hasil)),
+				(galat) => console.error("Pulang otomatis gagal", galat),
+			),
+		);
+	},
+} satisfies ExportedHandler<Env>;
