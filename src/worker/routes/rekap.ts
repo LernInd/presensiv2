@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { lembagaAdmin } from "../lib/admin";
+import { rekapKehadiranGuru } from "../lib/rekapGuru";
 import { rekapJamPelajaran } from "../lib/rekapJamPelajaran";
 import { periksaKelasOpsional, periksaRentang, rekapKehadiran } from "../lib/rekapKehadiran";
 import { periksaTanggal } from "../lib/validasiPembelajaran";
@@ -20,6 +21,12 @@ rekap.get("/rekap/kehadiran", async (c) => {
 	const lembaga = lembagaAdmin(c.get("orang"), "Hanya admin presensi yang dapat melihat rekap");
 	const { rentang, kelasId } = bacaParameter(c);
 	return c.json(await rekapKehadiran(c.env, c.get("token"), lembaga.id, rentang, kelasId));
+});
+
+rekap.get("/rekap/guru", async (c) => {
+	const lembaga = lembagaAdmin(c.get("orang"), "Hanya admin presensi yang dapat melihat rekap");
+	const { rentang } = bacaParameter(c);
+	return c.json(await rekapKehadiranGuru(c.env, c.get("token"), lembaga.id, rentang));
 });
 
 rekap.get("/rekap/jam-pelajaran", async (c) => {

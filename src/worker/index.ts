@@ -9,6 +9,7 @@ import { pelajaran } from "./routes/pelajaran";
 import { pengaturanPembelajaran } from "./routes/pengaturanPembelajaran";
 import { presensiHarian } from "./routes/presensiHarian";
 import { kedinasan } from "./routes/kedinasan";
+import { monitoring } from "./routes/monitoring";
 import { presensiGuru } from "./routes/presensiGuru";
 import { rekap } from "./routes/rekap";
 import { hapusFotoGuru } from "./lib/hapusFotoGuru";
@@ -57,6 +58,7 @@ app.route("/", presensiHarian);
 app.route("/", pengaturanPembelajaran);
 app.route("/", rekap);
 app.route("/", kedinasan);
+app.route("/", monitoring);
 app.route("/", presensiGuru);
 
 app.notFound((c) => c.json({ error: "Jalur tidak dikenal" }, 404));

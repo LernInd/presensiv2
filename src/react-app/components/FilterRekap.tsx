@@ -9,18 +9,22 @@ export function FilterRekap({
 	nilai,
 	memuat,
 	onUnduh,
+	tanpaKelas = false,
 }: {
 	nilai: NilaiFilter;
 	memuat: boolean;
 	onUnduh: (n: NilaiFilter) => void;
+	/** Rekap guru tidak dipilah per kelas: dropdown kelas disembunyikan. */
+	tanpaKelas?: boolean;
 }) {
 	const [draf, setDraf] = useState(nilai);
 	const [kelas, setKelas] = useState<KelasRingkas[]>([]);
 	const [galat, setGalat] = useState<string | null>(null);
 
 	useEffect(() => {
+		if (tanpaKelas) return;
 		ambilKelas().then(setKelas, () => setKelas([]));
-	}, []);
+	}, [tanpaKelas]);
 
 	function kirim(e: FormEvent) {
 		e.preventDefault();
@@ -46,6 +50,7 @@ export function FilterRekap({
 					onChange={(e) => setDraf({ ...draf, sampai: e.target.value })}
 				/>
 			</div>
+			{!tanpaKelas && (
 			<div className="kolom">
 				<label htmlFor="rekap-kelas">Kelas</label>
 				<select id="rekap-kelas" value={draf.kelasId} onChange={(e) => setDraf({ ...draf, kelasId: e.target.value })}>
@@ -57,6 +62,7 @@ export function FilterRekap({
 					))}
 				</select>
 			</div>
+			)}
 			<button type="submit" className="tombol" disabled={memuat}>
 				{memuat ? "Menyiapkan berkas…" : "Unduh Excel (.xlsx)"}
 			</button>

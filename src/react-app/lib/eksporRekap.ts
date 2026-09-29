@@ -1,4 +1,4 @@
-import type { RekapJamPelajaran, RekapKehadiran } from "./api";
+import type { RekapJamPelajaran, RekapKehadiran, RekapKehadiranGuru } from "./api";
 
 const LABEL_STATUS: Record<string, string> = {
 	hadir: "Hadir",
@@ -86,5 +86,28 @@ export async function unduhRekapXlsx(
 	await tulisExcel([
 		{ data: lembarGerbang, sheet: "Kehadiran Gerbang", stickyRowsCount: 1, columns: [{ width: 12 }, { width: 30 }, { width: 14 }, { width: 11 }, { width: 18 }, { width: 11 }, { width: 34 }] },
 		{ data: lembarJam, sheet: "Jam Pelajaran", stickyRowsCount: 1, columns: [{ width: 12 }, { width: 14 }, { width: 8 }, { width: 8 }, { width: 8 }, { width: 22 }, { width: 24 }, { width: 24 }, { width: 30 }, { width: 13 }, { width: 30 }, { width: 24 }, { width: 22 }] },
+	]).toFile(namaBerkas);
+}
+
+/**
+ * Satu lembar "Kehadiran Guru": jam masuk dan jam pulang per guru per tanggal.
+ * Presensi yang ditandai tidak valid oleh kepala sekolah sudah dikosongkan
+ * jamnya oleh server; tidak ada foto, lokasi, maupun alasan kepala sekolah.
+ */
+export async function unduhRekapGuruXlsx(data: RekapKehadiranGuru, namaBerkas: string): Promise<void> {
+	const { default: tulisExcel } = await import("write-excel-file/browser");
+
+	const lembar = [
+		["Tanggal", "Guru", "Jam Masuk", "Jam Pulang", "Keterangan"].map(kepala),
+		...data.baris.map((b) => [sel(b.tanggal), sel(b.guru_nama), sel(b.jam_masuk), sel(b.jam_pulang), sel(b.keterangan)]),
+	];
+
+	await tulisExcel([
+		{
+			data: lembar,
+			sheet: "Kehadiran Guru",
+			stickyRowsCount: 1,
+			columns: [{ width: 12 }, { width: 34 }, { width: 12 }, { width: 12 }, { width: 40 }],
+		},
 	]).toFile(namaBerkas);
 }

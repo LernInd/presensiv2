@@ -7,6 +7,7 @@ import { useRute, type Rute } from "./lib/router";
 import { GagalApi, keluar, setPeranAktif, saya as ambilSaya, type Saya } from "./lib/api";
 import { Dashboard } from "./pages/Dashboard";
 import { Hari } from "./pages/Hari";
+import { KehadiranGuru } from "./pages/KehadiranGuru";
 import { JadwalPelajaran } from "./pages/JadwalPelajaran";
 import { JamPelajaran } from "./pages/JamPelajaran";
 import { MasukGuru } from "./pages/MasukGuru";
@@ -14,6 +15,7 @@ import { MasukSiswa } from "./pages/MasukSiswa";
 import { PulangGuru } from "./pages/PulangGuru";
 import { PulangSiswa } from "./pages/PulangSiswa";
 import { Rekap } from "./pages/Rekap";
+import { RekapGuru } from "./pages/RekapGuru";
 import { TugasDinas } from "./pages/TugasDinas";
 
 type Keadaan =
@@ -55,24 +57,30 @@ function Halaman({
 	switch (rute.pathname) {
 		// Presensi gerbang hanya untuk guru: admin → jatuh ke Dashboard.
 		case "/masukguru":
-			if (tingkat === "admin") return beranda;
+			if (tingkat !== "guru") return beranda;
 			return <MasukGuru />;
 		case "/pulangguru":
-			if (tingkat === "admin") return beranda;
+			if (tingkat !== "guru") return beranda;
 			return <PulangGuru />;
 		case "/masuksiswa":
-			if (tingkat === "admin") return beranda;
+			if (tingkat !== "guru") return beranda;
 			return <MasukSiswa />;
 		case "/pulangsiswa":
-			if (tingkat === "admin") return beranda;
+			if (tingkat !== "guru") return beranda;
 			return <PulangSiswa />;
 		// Halaman khusus admin: bukan admin → jatuh ke Dashboard.
+		case "/kehadiranguru":
+			if (tingkat !== "kepsek") return beranda;
+			return <KehadiranGuru />;
 		case "/tugasdinas":
 			if (tingkat !== "admin") return beranda;
 			return <TugasDinas />;
 		case "/rekap":
 			if (tingkat !== "admin") return beranda;
 			return <Rekap />;
+		case "/rekapguru":
+			if (tingkat !== "admin") return beranda;
+			return <RekapGuru />;
 		case "/hari":
 			if (tingkat !== "admin") return <Dashboard saya={saya} peranAktif={peranAktif} onBukaAbsen={bukaAbsen} />;
 			return <Hari />;
@@ -80,7 +88,7 @@ function Halaman({
 			if (tingkat !== "admin") return <Dashboard saya={saya} peranAktif={peranAktif} onBukaAbsen={bukaAbsen} />;
 			return <JadwalPelajaran />;
 		case "/jampelajaran":
-			if (tingkat === "admin") return beranda;
+			if (tingkat !== "guru") return beranda;
 			return (
 				<JamPelajaran
 					sesiId={rute.params.get("sesi")}

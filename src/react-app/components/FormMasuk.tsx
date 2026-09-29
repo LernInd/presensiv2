@@ -97,7 +97,6 @@ export function FormMasuk({ onMasuk }: { onMasuk: (saya: Saya) => void }) {
 					<div className="masuk-shell__form-kepala">
 						<img src="/icon.svg" alt="" width={36} height={36} />
 						<h1>Presensi</h1>
-						<p className="redup">Masuk dengan akun guru atau admin presensi</p>
 					</div>
 
 					<div className="kolom">

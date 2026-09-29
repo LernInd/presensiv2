@@ -47,7 +47,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 export type PeranPengguna = {
 	kode: string;
 	sebutan: string;
-	tingkat: "admin" | "guru";
+	tingkat: "admin" | "guru" | "kepsek";
 	lembaga: { id: string; nama: string }[];
 };
 
@@ -279,6 +279,58 @@ export function kirimPresensiGuru(
 	return api<{ tipe: TipeGuru; waktu: string }>(`/presensi-guru/${tipe}`, { method: "POST", body: form });
 }
 
+// ---- Monitoring (kepala sekolah): kehadiran guru ----
+
+export type PresensiGuruMonitor = {
+	waktu: string;
+	alamat: string | null;
+	tautan_peta: string;
+	ada_foto: boolean;
+	valid: boolean;
+	catatan_validasi: string | null;
+	divalidasi_oleh_nama: string | null;
+	divalidasi_pada: string | null;
+};
+
+export type BarisMonitorGuru = {
+	guru_id: string;
+	guru_nama: string;
+	dinas: string | null;
+	masuk: PresensiGuruMonitor | null;
+	pulang: PresensiGuruMonitor | null;
+};
+
+export const kehadiranGuru = (tanggal: string) =>
+	api<{ tanggal: string; guru: BarisMonitorGuru[] }>(`/monitoring/kehadiran-guru?tanggal=${encodeURIComponent(tanggal)}`);
+
+export const validasiPresensiGuru = (badan: {
+	tanggal: string;
+	guru_id: string;
+	tipe: TipeGuru;
+	valid: boolean;
+	keterangan: string;
+}) =>
+	api<{ valid: boolean; berubah: boolean }>("/monitoring/kehadiran-guru/validasi", {
+		method: "POST",
+		body: JSON.stringify(badan),
+	});
+
+// Foto diambil lewat fetch (bukan <img src>) agar header X-Peran ikut terkirim;
+// hasilnya blob yang ditampilkan lewat URL objek sementara.
+export async function fotoPresensiGuru(tanggal: string, guruId: string, tipe: TipeGuru): Promise<Blob> {
+	const headers = new Headers();
+	if (peranAktif) headers.set("X-Peran", peranAktif);
+	const respons = await fetch(`/api/monitoring/foto/${tanggal}/${guruId}/${tipe}`, {
+		headers,
+		credentials: "same-origin",
+	});
+	if (!respons.ok) {
+		const isi = (await respons.json().catch(() => ({}))) as { error?: string };
+		throw new GagalApi(respons.status, isi.error ?? "Gagal memuat foto");
+	}
+	return respons.blob();
+}
+
 // ---- Kedinasan (admin): tugas dinas guru ----
 
 export type TugasDinas = {
@@ -354,6 +406,25 @@ function queryRekap(dari: string, sampai: string, kelasId: string): string {
 
 export const ambilRekapKehadiran = (dari: string, sampai: string, kelasId = "") =>
 	api<RekapKehadiran>(`/rekap/kehadiran?${queryRekap(dari, sampai, kelasId)}`);
+
+export type BarisRekapGuru = {
+	tanggal: string;
+	guru_id: string;
+	guru_nama: string;
+	jam_masuk: string | null;
+	jam_pulang: string | null;
+	keterangan: string;
+};
+
+export type RekapKehadiranGuru = {
+	dari: string;
+	sampai: string;
+	tanggal_dilewati: { tanggal: string; alasan: string }[];
+	baris: BarisRekapGuru[];
+};
+
+export const ambilRekapKehadiranGuru = (dari: string, sampai: string) =>
+	api<RekapKehadiranGuru>(`/rekap/guru?${queryRekap(dari, sampai, "")}`);
 
 export const ambilRekapJamPelajaran = (dari: string, sampai: string, kelasId = "") =>
 	api<RekapJamPelajaran>(`/rekap/jam-pelajaran?${queryRekap(dari, sampai, kelasId)}`);

@@ -43,7 +43,18 @@ const KATEGORI_ADMIN: Kategori[] = [
 	},
 	{
 		label: "Rekap",
-		butir: [{ label: "Rekap Kehadiran", tujuan: "/rekap" }],
+		butir: [
+			{ label: "Rekap Kehadiran", tujuan: "/rekap" },
+			{ label: "Rekap Kehadiran Guru", tujuan: "/rekapguru" },
+		],
+	},
+];
+
+// Kepala sekolah/madrasah: hanya memantau kehadiran guru lembaganya.
+const KATEGORI_KEPSEK: Kategori[] = [
+	{
+		label: "Monitoring",
+		butir: [{ label: "Kehadiran Guru", tujuan: "/kehadiranguru" }],
 	},
 ];
 
@@ -68,7 +79,9 @@ export function Sidebar({
 	const kategori =
 		tingkat === "admin"
 			? KATEGORI_ADMIN
-			: [...KATEGORI_GURU, KATEGORI_PELAJARAN];
+			: tingkat === "kepsek"
+				? KATEGORI_KEPSEK
+				: [...KATEGORI_GURU, KATEGORI_PELAJARAN];
 
 	return (
 		<>

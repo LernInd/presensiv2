@@ -22,7 +22,7 @@ export function periksaKelasOpsional(nilai: string | undefined): string | null {
 	return nilai ? uuid(nilai, "kelas_id") : null;
 }
 
-function semuaTanggal({ dari, sampai }: Rentang): string[] {
+export function semuaTanggal({ dari, sampai }: Rentang): string[] {
 	const hasil: string[] = [];
 	for (let t = Date.parse(`${dari}T00:00:00Z`); t <= Date.parse(`${sampai}T00:00:00Z`); t += 86_400_000) {
 		hasil.push(new Date(t).toISOString().slice(0, 10));
@@ -31,7 +31,7 @@ function semuaTanggal({ dari, sampai }: Rentang): string[] {
 }
 
 // 1 = Senin … 7 = Minggu, sama dengan kolom jadwal_pelajaran.hari.
-function hariDariTanggal(tanggal: string): number {
+export function hariDariTanggal(tanggal: string): number {
 	const d = new Date(`${tanggal}T12:00:00Z`).getUTCDay();
 	return d === 0 ? 7 : d;
 }

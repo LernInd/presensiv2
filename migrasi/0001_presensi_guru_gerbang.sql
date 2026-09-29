@@ -4,6 +4,9 @@
 -- Terapkan (setelah diuji di D1 lokal):
 --   npx wrangler d1 execute presensi-db --local  --file migrasi/0001_presensi_guru_gerbang.sql
 --   npx wrangler d1 execute presensi-db --remote --file migrasi/0001_presensi_guru_gerbang.sql
+--
+-- Berkas ini sudah diterapkan ke produksi — JANGAN diubah lagi. Perubahan
+-- skema berikutnya ditulis sebagai migrasi baru (0002, 0003, …).
 
 create table if not exists presensi_gerbang_guru (
   tanggal text not null,                 -- 'YYYY-MM-DD' waktu setempat

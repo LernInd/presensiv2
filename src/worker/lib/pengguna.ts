@@ -2,6 +2,7 @@ import {
 	PERAN_PRESENSI,
 	lembagaUntukPeran,
 	peranPresensi,
+	turunanKepsek,
 	tingkatTertinggi,
 	type BarisPeranLembaga,
 	type KodePeranPresensi,
@@ -68,9 +69,11 @@ export async function muatOrang(
 		return null;
 	}
 
-	const { results } = await env.DB.prepare(
+	const { results: peranDb } = await env.DB.prepare(
 		"select peran_code, lembaga_id, lembaga_nama, tingkat from peran_lembaga",
 	).all<BarisPeranLembaga>();
+	// Kepala sekolah: lembaga diturunkan dari peran admin pasangannya (lih. peran.ts).
+	const results = [...peranDb, ...turunanKepsek(peranDb)];
 
 	const peran: PeranPengguna[] = kodePresensi.map((kode) => ({
 		kode,

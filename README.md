@@ -355,6 +355,53 @@ selain `/api/*`.
   (`npx wrangler r2 bucket create presensiv2-foto`). Dev lokal memakai R2
   lokal (binding tanpa `remote`), jadi tidak menulis ke bucket produksi.
 
+### Rekap kehadiran guru (admin presensi)
+
+- `GET /api/rekap/guru?dari=&sampai=` (admin, maks. 31 hari) → menu **Rekap ›
+  Rekap Kehadiran Guru** (`/rekapguru`) mengunduh `.xlsx` satu lembar: Tanggal,
+  Guru, Jam Masuk, Jam Pulang, Keterangan. Baris = semua guru lembaga × tanggal
+  aktif (libur/nonaktif dilewati; guru dinas ditandai di keterangan).
+- Presensi yang ditandai **tidak valid oleh kepala sekolah** tidak menampilkan
+  jamnya: hanya jam yang ditandai yang dikosongkan (masuk invalid → jam masuk
+  kosong; pulang invalid → jam pulang kosong) dan keterangan menyebut mana yang
+  tidak valid. Berkas **tidak** memuat foto, lokasi/alamat, maupun alasan
+  kepala sekolah — kolom itu bahkan tidak dibaca server untuk rekap ini.
+
+### Kepala sekolah/madrasah (`ksmts`, `ksma`, `kssmk`, `ksmadin`) — Monitoring
+
+- Peran-peran ini sudah ada di Supabase (`public.roles`) dan kini ikut
+  `PERAN_PRESENSI` dengan tingkat baru `kepsek`. Tabel `peran_lembaga` (dipakai
+  bersama worker lain, CHECK `tingkat`-nya tertutup) **tidak diubah**: lembaga
+  kepala sekolah diturunkan di kode dari peran admin presensi lembaga yang sama
+  (`PASANGAN_KEPSEK` di `lib/peran.ts`: `ksmts→adminpresensimts`, `ksma→adminpresensima`,
+  `kssmk→adminpresensismk`, `ksmadin→adminpresensimadin`). Bila peran admin
+  pasangannya dihapus dari `peran_lembaga`, kepala sekolah itu kehilangan lembaga.
+- Sidebar: Dashboard + **Monitoring › Kehadiran Guru** (`/kehadiranguru`). Rute
+  guru/admin dialihkan ke Dashboard untuk tingkat ini, dan server juga menolaknya
+  (`jagaGuru`, `lembagaAdmin`).
+- `GET /api/monitoring/kehadiran-guru?tanggal=` (semua guru lembaga: jam, lokasi,
+  status valid, dinas), `GET /api/monitoring/foto/:tanggal/:guruId/:tipe`
+  (foto R2 milik lembaganya, `no-store`, hanya sampai 23:00), `POST
+  /api/monitoring/kehadiran-guru/validasi` `{tanggal, guru_id, tipe, valid,
+  keterangan}` — **keterangan wajib (1–200 karakter) untuk menandai tidak valid
+  maupun memulihkan**; tiap perubahan tercatat di `riwayat_validasi_guru`.
+- Daftar guru tampil sebagai akordeon (klik nama untuk membuka), urut menurut
+  **nama depan** (gelar/sapaan seperti Drs., H., Hj., Ust. dilewati). Koordinat
+  **tidak pernah ditampilkan**: yang tampil "Perkiraan alamat" + tautan "Lihat di
+  peta". Alamat dicari lewat **Nominatim (OpenStreetMap)** dari worker — koordinat
+  guru dikirim ke server pihak ketiga itu; hasilnya disimpan di kolom `alamat`
+  (`migrasi/0003_alamat_presensi_guru.sql`) supaya tiap titik dicari sekali,
+  diisi saat presensi dicatat dan sebagai isi susulan (maks. 5 baris, berjeda
+  ≥1,1 dtk sesuai batas 1 permintaan/detik OSM) saat halaman dibuka.
+- Binding R2 `FOTO` memakai `"remote": true` seperti D1: `npm run dev` membaca dan
+  menulis bucket produksi `presensiv2-foto` (tanpa itu dev memakai R2 lokal yang
+  kosong sehingga foto produksi "tidak ditemukan"). Foto tetap dihapus cron 23:00.
+  Migrasi diterapkan berurutan 0001 → 0002 → 0003; migrasi yang sudah dijalankan
+  tidak boleh diubah, perubahan skema baru = berkas baru.
+- Guru **tidak diberi tahu** dan tidak bisa mengulang presensi yang diinvalidkan;
+  status ini hanya terlihat oleh kepala sekolah. Admin presensi tidak melihat
+  foto/lokasi.
+
 ## Deploy
 
 ```bash
