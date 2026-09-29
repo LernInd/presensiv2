@@ -63,7 +63,16 @@ export type Saya = {
 export const masuk = (username: string, password: string) =>
 	api<Saya>("/masuk", { method: "POST", body: JSON.stringify({ username, password }) });
 
-export const keluar = () => api<{ keluar: true }>("/keluar", { method: "POST" });
+export const keluar = async () => {
+	try {
+		return await api<{ keluar: true }>("/keluar", { method: "POST" });
+	} finally {
+		// Cache jadwal-hari-ini (lih. jadwalHariIni di bawah) ikut dibuang saat
+		// keluar — jangan sampai jadwal satu pengguna nyangkut untuk pengguna
+		// berikutnya di perangkat/tab yang sama.
+		bersihkanCacheJadwal();
+	}
+};
 
 export const saya = () => api<Saya>("/saya");
 
@@ -87,7 +96,63 @@ export type JadwalHariIni = {
 	libur: { lembaga_id: string; tanggal: string; keterangan: string | null }[];
 };
 
-export const jadwalHariIni = () => api<JadwalHariIni>("/jadwal-hari-ini");
+const ZONA_TAMPIL = "Asia/Jakarta";
+const AWALAN_CACHE_JADWAL = "presensiv2:jadwal-hari-ini";
+
+// Tanggal WIB (bukan zona perangkat pengguna) supaya kunci cache "reset"
+// tepat tengah malam WIB, sesuai zona bawaan server (lih. lib/env.ts di
+// worker — default juga Asia/Jakarta).
+function tanggalWib(): string {
+	return new Intl.DateTimeFormat("en-CA", {
+		timeZone: ZONA_TAMPIL,
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+	}).format(new Date());
+}
+
+function kunciCacheJadwal(): string {
+	return `${AWALAN_CACHE_JADWAL}:${tanggalWib()}:${peranAktif ?? "_"}`;
+}
+
+/** Dipanggil saat keluar supaya jadwal tidak nyangkut untuk sesi berikutnya. */
+export function bersihkanCacheJadwal(): void {
+	try {
+		for (let i = sessionStorage.length - 1; i >= 0; i--) {
+			const kunci = sessionStorage.key(i);
+			if (kunci?.startsWith(AWALAN_CACHE_JADWAL)) sessionStorage.removeItem(kunci);
+		}
+	} catch {
+		// sessionStorage bisa saja dilarang (mode privat dsb.) — bukan fatal.
+	}
+}
+
+/**
+ * Jadwal hari ini disimpan di sessionStorage (bukan diminta ulang ke server)
+ * selama tanggal WIB belum berganti — kuncinya menyertakan tanggal, jadi
+ * otomatis "reset" begitu lewat tengah malam WIB, dan ikut hilang saat tab
+ * ditutup atau pengguna keluar (lih. bersihkanCacheJadwal). Ini cache di
+ * level aplikasi, BUKAN header Cache-Control di server: jawaban API tetap
+ * `no-store` seperti semula, supaya tidak ada risiko jadwal satu pengguna
+ * kebaca dari cache HTTP oleh pengguna lain di perangkat yang sama.
+ */
+export async function jadwalHariIni(): Promise<JadwalHariIni> {
+	const kunci = kunciCacheJadwal();
+	try {
+		const tersimpan = sessionStorage.getItem(kunci);
+		if (tersimpan) return JSON.parse(tersimpan) as JadwalHariIni;
+	} catch {
+		// lanjut ambil dari server kalau sessionStorage bermasalah dibaca
+	}
+
+	const data = await api<JadwalHariIni>("/jadwal-hari-ini");
+	try {
+		sessionStorage.setItem(kunci, JSON.stringify(data));
+	} catch {
+		// penyimpanan penuh/dilarang — tidak fatal, cukup tidak tersimpan
+	}
+	return data;
+}
 
 export type BarisPresensi = {
 	santri_id: string;
