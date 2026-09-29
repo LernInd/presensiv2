@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { simpanAlamat } from "../lib/alamat";
 import { GagalRute } from "../lib/galat";
 import {
 	MAKS_BYTE_BADAN,
@@ -45,5 +46,14 @@ presensiGuru.post("/presensi-guru/:tipe", async (c) => {
 	const badan = await periksaBadanGuru(form);
 
 	const hasil = await catatPresensiGuru(c.env, orang, tipe, badan);
+	if (!hasil.sudah) {
+		// Perkiraan alamat dicari sesudah jawaban terkirim: tidak memperlambat guru, dan
+		// bila gagal akan diisi susulan saat kepala sekolah membuka monitoring.
+		c.executionCtx.waitUntil(
+			simpanAlamat(c.env, { tanggal: hasil.tanggal, guruId: orang.uid, tipe }, badan.lat, badan.lng).catch((galat) =>
+				console.error("Simpan alamat gagal", galat),
+			),
+		);
+	}
 	return c.json({ tipe: hasil.tipe, waktu: hasil.waktu }, hasil.sudah ? 200 : 201);
 });

@@ -107,7 +107,7 @@ export async function catatPresensiGuru(
 	orang: Orang,
 	tipe: TipeGuru,
 	badan: BadanGuru,
-): Promise<{ tipe: TipeGuru; waktu: string; sudah: boolean }> {
+): Promise<{ tipe: TipeGuru; waktu: string; sudah: boolean; tanggal: string }> {
 	const status = await statusGuruHariIni(env, orang);
 	if (status.dinas) {
 		throw new GagalRute(
@@ -121,7 +121,7 @@ export async function catatPresensiGuru(
 	}
 
 	const sudahAda = tipe === "masuk" ? status.masuk : status.pulang;
-	if (sudahAda) return { tipe, waktu: sudahAda.waktu, sudah: true };
+	if (sudahAda) return { tipe, waktu: sudahAda.waktu, sudah: true, tanggal: status.tanggal };
 	if (tipe === "pulang" && !status.masuk) throw new GagalRute(409, "Presensi masuk hari ini belum tercatat");
 
 	const lembagaId = lembagaGuru(orang);
@@ -145,7 +145,7 @@ export async function catatPresensiGuru(
 		)
 			.bind(status.tanggal, orang.uid, tipe)
 			.first<{ waktu: string }>();
-		return { tipe, waktu: baris?.waktu ?? waktu, sudah: true };
+		return { tipe, waktu: baris?.waktu ?? waktu, sudah: true, tanggal: status.tanggal };
 	}
 
 	try {
@@ -158,5 +158,5 @@ export async function catatPresensiGuru(
 		throw galat;
 	}
 
-	return { tipe, waktu, sudah: false };
+	return { tipe, waktu, sudah: false, tanggal: status.tanggal };
 }

@@ -20,7 +20,8 @@
 	"r2_buckets": [
 		{
 			"binding": "FOTO",
-			"bucket_name": "presensiv2-foto"
+			"bucket_name": "presensiv2-foto",
+			"remote": true
 		}
 	],
 	"ratelimits": [

@@ -1437,6 +1437,147 @@ select:focus-visible {
 	}
 }
 
+/* Monitoring › Kehadiran Guru (kepala sekolah) */
+.kolom--tanggal {
+	width: 100%;
+}
+
+@media (min-width: 640px) {
+	.kolom--tanggal {
+		width: 200px;
+	}
+}
+
+.daftar-kartu-guru {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 16px;
+	align-items: start;
+}
+
+@media (min-width: 1024px) {
+	.daftar-kartu-guru {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.kartu-guru {
+	gap: 0;
+	padding: 0;
+}
+
+/* Akordeon: baris ringkas selalu terlihat, detail dibuka dengan klik. */
+.kartu-guru__ringkas {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 12px;
+	min-height: 56px;
+	padding: 10px 16px;
+	cursor: pointer;
+	list-style: none;
+}
+
+.kartu-guru__ringkas::-webkit-details-marker {
+	display: none;
+}
+
+.kartu-guru__ringkas::before {
+	content: "";
+	flex: none;
+	width: 8px;
+	height: 8px;
+	border-right: 2px solid var(--redup);
+	border-bottom: 2px solid var(--redup);
+	transform: rotate(-45deg);
+	transition: transform 0.15s;
+}
+
+.kartu-guru[open] > .kartu-guru__ringkas::before {
+	transform: rotate(45deg);
+}
+
+.kartu-guru__ringkas:focus-visible {
+	outline: 3px solid color-mix(in srgb, var(--utama) 40%, transparent);
+	outline-offset: -3px;
+	border-radius: var(--radius);
+}
+
+.kartu-guru__nama {
+	flex: 1 1 160px;
+	min-width: 0;
+	font-weight: 600;
+}
+
+.kartu-guru__jam {
+	flex: 0 1 auto;
+}
+
+.kartu-guru__isi {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 0 16px 16px;
+	border-top: 1px solid var(--garis);
+}
+
+.kartu-guru__isi > .presensi-baris:first-child,
+.kartu-guru__isi > .info-dinas + .presensi-baris {
+	border-top: 0;
+}
+
+.presensi-baris {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding-top: 12px;
+	border-top: 1px solid var(--garis);
+}
+
+.presensi-baris__kepala {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+}
+
+.presensi-baris__label {
+	min-width: 56px;
+	font-weight: 600;
+}
+
+.presensi-baris__foto {
+	width: 100%;
+	max-width: 320px;
+	border-radius: var(--radius);
+	border: 1px solid var(--garis);
+}
+
+.presensi-baris__aksi {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.validasi-kolom textarea {
+	width: 100%;
+	padding: 10px 14px;
+	font: inherit;
+	font-size: 1rem;
+	color: var(--teks);
+	background: var(--permukaan);
+	border: 1px solid var(--garis);
+	border-radius: 10px;
+	resize: vertical;
+}
+
+.validasi-kolom textarea:focus-visible {
+	outline: none;
+	border-color: var(--utama);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--utama) 25%, transparent);
+}
+
 /* Kedinasan › Tugas Dinas (admin) */
 .form-dinas {
 	display: grid;
