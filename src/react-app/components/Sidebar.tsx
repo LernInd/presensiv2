@@ -1,7 +1,9 @@
 type Butir = { label: string; tujuan: string };
 type Kategori = { label: string; butir: Butir[] };
 
-const KATEGORI: Kategori[] = [
+// Presensi gerbang (Guru/Siswa Masuk-Pulang) hanya untuk tingkat guru; admin
+// tidak mencatat gerbang, ia merekap (lihat KATEGORI_ADMIN).
+const KATEGORI_GURU: Kategori[] = [
 	{
 		label: "Guru",
 		butir: [
@@ -16,23 +18,34 @@ const KATEGORI: Kategori[] = [
 			{ label: "Pulang", tujuan: "/pulangsiswa" },
 		],
 	},
-	{
-		label: "Pelajaran",
-		butir: [{ label: "Jam Pelajaran", tujuan: "/jampelajaran" }],
-	},
 ];
+
+const KATEGORI_PELAJARAN: Kategori = {
+	label: "Pelajaran",
+	butir: [{ label: "Jam Pelajaran", tujuan: "/jampelajaran" }],
+};
 
 // Khusus tingkat admin: mengatur hari aktif/libur dan jadwal mingguan.
 // Labelnya sengaja "Jadwal Pelajaran" (bukan "Jam Pelajaran" seperti milik
 // guru di atas) supaya tidak tertukar dengan layar ambil-presensi guru,
 // walau keduanya bicara soal jadwal.
-const KATEGORI_ADMIN: Kategori = {
-	label: "Pembelajaran",
-	butir: [
-		{ label: "Hari", tujuan: "/hari" },
-		{ label: "Jadwal Pelajaran", tujuan: "/jadwalpelajaran" },
-	],
-};
+const KATEGORI_ADMIN: Kategori[] = [
+	{
+		label: "Pembelajaran",
+		butir: [
+			{ label: "Hari", tujuan: "/hari" },
+			{ label: "Jadwal Pelajaran", tujuan: "/jadwalpelajaran" },
+		],
+	},
+	{
+		label: "Kedinasan",
+		butir: [{ label: "Tugas Dinas", tujuan: "/tugasdinas" }],
+	},
+	{
+		label: "Rekap",
+		butir: [{ label: "Rekap Kehadiran", tujuan: "/rekap" }],
+	},
+];
 
 export function Sidebar({
 	pathname,
@@ -52,7 +65,10 @@ export function Sidebar({
 		onTutup();
 	}
 
-	const kategori = tingkat === "admin" ? [...KATEGORI, KATEGORI_ADMIN] : KATEGORI;
+	const kategori =
+		tingkat === "admin"
+			? KATEGORI_ADMIN
+			: [...KATEGORI_GURU, KATEGORI_PELAJARAN];
 
 	return (
 		<>

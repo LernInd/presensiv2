@@ -14,6 +14,15 @@
 		"run_worker_first": ["/api/*"]
 	},
 	"keep_vars": true,
+	"triggers": {
+		"crons": ["0 12 * * *", "0 16 * * *"]
+	},
+	"r2_buckets": [
+		{
+			"binding": "FOTO",
+			"bucket_name": "presensiv2-foto"
+		}
+	],
 	"ratelimits": [
 		{
 			"name": "RL_LOGIN_IP",
@@ -30,7 +39,8 @@
 		{
 			"binding": "DB",
 			"database_name": "presensi-db",
-			"database_id": "fcb6c89c-74c2-4635-880f-92b31dcd34df"
+			"database_id": "fcb6c89c-74c2-4635-880f-92b31dcd34df",
+			"remote": true
 		}
 	]
 }

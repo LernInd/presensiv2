@@ -13,9 +13,10 @@
 	--peringatan-lembut: #fef3e2;
 	--bayang: 0 1px 2px rgb(15 23 42 / 6%), 0 4px 16px rgb(15 23 42 / 6%);
 	--radius: 8px;
-	--lebar-masuk: 880px;
+	--lebar-masuk: 400px;
 	--lebar-konten: 880px;
 	--lebar-sempit: 560px;
+	--lebar-lebar: 880px;
 
 	color-scheme: light dark;
 	font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -122,6 +123,9 @@ h2 {
 	flex: 1;
 	display: flex;
 	flex-direction: column;
+	/* Anak flex tidak boleh melebar melebihi layar karena isinya (tab, form,
+	   tabel): tanpa ini halaman ponsel bisa "terlalu lebar" dan tergulir mendatar. */
+	min-width: 0;
 }
 
 .topbar {
@@ -263,6 +267,10 @@ h2 {
 	max-width: var(--lebar-sempit);
 }
 
+.container--lebar {
+	max-width: var(--lebar-lebar);
+}
+
 .halaman-judul {
 	display: flex;
 	flex-direction: column;
@@ -274,6 +282,7 @@ h2 {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
+	min-width: 0;
 }
 
 label {
@@ -387,9 +396,8 @@ input:disabled {
 	border-color: transparent;
 }
 
-/* Login: panel klasik terbagi dua di layar lebar (mis. Okta/GitHub
-   Enterprise) — kolom brand + kolom form dalam satu kotak bertepi, bukan
-   kartu ponsel yang diregangkan. */
+/* Login: satu kartu polos di tengah, tanpa dekorasi. Lebar mengikuti layar
+   (penuh dengan gutter di ponsel, maks. 400px di tablet/desktop). */
 .halaman--login {
 	min-height: 100dvh;
 	display: flex;
@@ -404,36 +412,13 @@ input:disabled {
 	background: var(--permukaan);
 	border: 1px solid var(--garis);
 	border-radius: var(--radius);
-	box-shadow: var(--bayang);
-	overflow: hidden;
-	display: grid;
-	grid-template-columns: 1fr;
-}
-
-.masuk-shell__marca {
-	display: none;
-	flex-direction: column;
-	justify-content: center;
-	gap: 12px;
-	padding: 48px 40px;
-	color: var(--utama-teks);
-	background: linear-gradient(160deg, var(--utama), color-mix(in srgb, var(--utama) 65%, black));
-}
-
-.masuk-shell__marca h1,
-.masuk-shell__marca p {
-	color: inherit;
-}
-
-.masuk-shell__marca p {
-	opacity: 0.85;
 }
 
 .masuk-shell__form {
 	display: flex;
 	flex-direction: column;
 	gap: 16px;
-	padding: 32px 24px;
+	padding: 28px 20px;
 }
 
 .masuk-shell__form-kepala {
@@ -444,22 +429,9 @@ input:disabled {
 	text-align: center;
 }
 
-@media (min-width: 860px) {
-	.masuk-shell {
-		grid-template-columns: 1fr 1.15fr;
-	}
-
-	.masuk-shell__marca {
-		display: flex;
-	}
-
-	.masuk-shell__form-kepala {
-		display: none;
-	}
-
+@media (min-width: 600px) {
 	.masuk-shell__form {
-		padding: 48px 56px;
-		justify-content: center;
+		padding: 32px 32px 36px;
 	}
 }
 
@@ -469,7 +441,7 @@ input:disabled {
 	border: 2px solid currentColor;
 	border-right-color: transparent;
 	border-radius: 50%;
-	animation: putar 0.7s linear infinite;
+	animation: putar 1.4s linear infinite;
 }
 
 .putar--besar {
@@ -765,9 +737,10 @@ input:disabled {
 		display: inline-flex;
 	}
 
-	/* Ponsel: brand disembunyikan, foto profil + nama lengkap jadi identitas
-	   utama di header kanan (tetap jadi pemicu dropdown akun). */
-	.topbar__brand {
+	/* Ponsel: brand dan nama disembunyikan, cukup foto profil (+ panah) sebagai
+	   pemicu dropdown akun di header kanan. */
+	.topbar__brand,
+	.menu-akun__nama {
 		display: none;
 	}
 
@@ -776,6 +749,9 @@ input:disabled {
 		z-index: 20;
 		inset: 0 25% 0 0;
 		max-width: 280px;
+		/* Laci menutupi seluruh tinggi layar termasuk header; beri ruang atas
+		   supaya butir pertama tidak menempel di tepi atas. */
+		padding-top: 72px;
 		box-shadow: var(--bayang);
 		transform: translateX(-100%);
 		transition: transform 0.2s ease;
@@ -960,6 +936,44 @@ input:disabled {
 
 .tombol--tautan:hover {
 	color: var(--utama);
+}
+
+/* Halaman presensi siswa: judul + toggle sebaris; pemindai/pencarian melebar di PC */
+.presensi-kepala {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 12px 24px;
+}
+
+/* Ponsel: toggle mengisi lebar penuh, dua tombol sama lebar dan mudah disentuh */
+@media (max-width: 640px) {
+	.presensi-kepala .segmen {
+		display: flex;
+		width: 100%;
+	}
+
+	.presensi-kepala .segmen__tombol {
+		flex: 1;
+		min-height: 44px;
+	}
+
+	.container--lebar .kartu {
+		padding: 16px;
+	}
+}
+
+@media (min-width: 1024px) {
+	.container--lebar .pemindai__video {
+		max-width: none;
+		aspect-ratio: 4 / 3;
+		max-height: 60vh;
+	}
+
+	.container--lebar .pencarian__form {
+		max-width: none;
+	}
 }
 
 /* Toggle Pindai QR / Absen Manual */
@@ -1161,13 +1175,25 @@ input:disabled {
 
 /* Halaman "Hari" (admin) */
 .pilihan-hari {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 	gap: 8px;
 }
 
+@media (min-width: 640px) {
+	.pilihan-hari {
+		grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+	}
+}
+
+@media (min-width: 640px) {
+	.tombol--simpan-hari {
+		align-self: flex-start;
+	}
+}
+
 .pilihan-hari__butir {
-	min-height: 40px;
+	min-height: 48px;
 	padding: 0 16px;
 	font: inherit;
 	font-size: 0.9375rem;
@@ -1189,8 +1215,22 @@ input:disabled {
 	border-color: var(--utama);
 }
 
+/* Dropdown kelas: penuh lebar di ponsel; di PC lebar tetap yang nyaman dibaca
+   dan sejajar dengan judul (di dalam .presensi-kepala). */
 .kolom--pilih-kelas {
-	max-width: 320px;
+	width: 100%;
+}
+
+@media (min-width: 640px) {
+	.kolom--pilih-kelas {
+		width: 380px;
+	}
+}
+
+@media (min-width: 1024px) {
+	.kolom--pilih-kelas {
+		width: 460px;
+	}
 }
 
 select {
@@ -1211,29 +1251,41 @@ select:focus-visible {
 	box-shadow: 0 0 0 3px color-mix(in srgb, var(--utama) 25%, transparent);
 }
 
+/* Ponsel: tanggal, keterangan, tombol Tambah bertumpuk penuh lebar; PC sebaris. */
 .form-libur {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 8px;
-	align-items: center;
 }
 
-.form-libur input[type="date"] {
-	max-width: 170px;
+.form-libur .tombol {
+	min-height: 48px;
 }
 
-.form-libur input[type="text"] {
-	flex: 1;
-	min-width: 180px;
+@media (min-width: 640px) {
+	.form-libur {
+		grid-template-columns: 200px minmax(0, 1fr) auto;
+		align-items: center;
+	}
 }
 
 .daftar-libur {
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
 	gap: 8px;
+}
+
+@media (min-width: 1024px) {
+	.daftar-libur {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+.daftar-libur__ket {
+	display: block;
 }
 
 .daftar-libur__baris {
@@ -1252,10 +1304,25 @@ select:focus-visible {
 }
 
 /* Halaman "Jadwal Pelajaran" (admin) */
+/* Tab hari: mengisi lebar penuh, tiap tombol sama lebar; bila hari aktif
+   banyak dan layar sempit, tab bisa digulir mendatar alih-alih membungkus. */
 .segmen--hari {
-	flex-wrap: wrap;
+	display: flex;
 	align-self: stretch;
-	width: fit-content;
+	width: 100%;
+	overflow-x: auto;
+}
+
+.segmen--hari .segmen__tombol {
+	flex: 1 0 auto;
+	min-height: 44px;
+}
+
+@media (max-width: 640px) {
+	.segmen--hari .segmen__tombol {
+		padding: 0 10px;
+		font-size: 0.8125rem;
+	}
 }
 
 .daftar-jadwal-admin {
@@ -1318,14 +1385,97 @@ select:focus-visible {
 	gap: 12px;
 }
 
+/* PC: pelajaran, jam mulai/selesai, dan penanggung jawab sebaris. */
+@media (min-width: 1024px) {
+	.form-jadwal {
+		display: grid;
+		grid-template-columns: 2fr 2fr 2fr;
+		align-items: end;
+		gap: 14px 16px;
+	}
+
+	.form-jadwal__aksi {
+		grid-column: 1 / -1;
+	}
+}
+
 .form-jadwal__jam .kolom {
 	flex: 1;
+	min-width: 0;
 }
 
 .form-jadwal__aksi {
 	display: flex;
 	gap: 10px;
 	justify-content: flex-end;
+}
+
+/* Presensi guru (foto + lokasi) */
+.kamera-guru {
+	transform: scaleX(-1); /* pratayang kamera depan seperti cermin; foto tersimpan tidak dibalik */
+}
+
+.info-dinas {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	padding: 14px 16px;
+	background: var(--peringatan-lembut);
+	border-radius: var(--radius);
+}
+
+.aksi-foto {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 10px;
+	width: 100%;
+}
+
+@media (min-width: 640px) {
+	.aksi-foto {
+		grid-template-columns: 1fr 1fr;
+	}
+}
+
+/* Kedinasan › Tugas Dinas (admin) */
+.form-dinas {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 12px 16px;
+}
+
+.form-dinas .tombol {
+	min-height: 48px;
+}
+
+@media (min-width: 640px) {
+	.form-dinas {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.form-dinas__guru,
+	.form-dinas__ket,
+	.form-dinas__aksi {
+		grid-column: 1 / -1;
+	}
+
+	.form-dinas__aksi {
+		justify-self: start;
+		width: auto;
+		min-width: 220px;
+	}
+}
+
+/* Halaman Rekap (admin): filter tanggal/kelas lalu unduh .xlsx */
+.filter-rekap {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+	align-items: end;
+	gap: 12px 16px;
+}
+
+.filter-rekap__galat {
+	grid-column: 1 / -1;
 }
 
 @media (prefers-reduced-motion: reduce) {

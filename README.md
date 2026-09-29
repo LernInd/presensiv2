@@ -100,6 +100,8 @@ presensi-db produksi. Isi data uji lokal dengan `npx wrangler d1 execute presens
 | `POST /api/pengaturan/jadwal` | cookie (admin) | tambah baris jadwal (409 bila bentrok jam di kelas+hari yang sama) |
 | `PATCH /api/pengaturan/jadwal/:id` | cookie (admin) | ubah baris jadwal |
 | `DELETE /api/pengaturan/jadwal/:id` | cookie (admin) | hapus baris jadwal |
+| `GET /api/rekap/kehadiran?dari=&sampai=&kelas_id=` | cookie (admin) | rekap gerbang semua santri lembaga per tanggal (maks. 31 hari): jam + keterangan masuk, keterangan pulang |
+| `GET /api/rekap/jam-pelajaran?dari=&sampai=&kelas_id=` | cookie (admin) | rekap tiap jam pelajaran: status tiap siswa, guru pengampu, guru yang mengabsen, keterangan/pengubah saat tidak hadir |
 
 Rute baru yang butuh login cukup didaftarkan setelah `app.use("*", pemanggil)`
 di `src/worker/index.ts`, lalu pakai `c.get("orang")` (`peran`, `lembagaBoleh`,
@@ -302,6 +304,56 @@ selain `/api/*`.
   - Karena penomoran ulang bisa mengubah `jam_ke` baris lain yang sedang
     tampil, layar mengambil ulang seluruh daftar hari itu dari server
     sesudah tiap mutasi alih-alih menambal satu baris secara lokal.
+
+### Rekap (khusus admin) & pulang otomatis 19:00
+
+- Menu admin: Dashboard, Pelajaran › Jam Pelajaran, Pembelajaran (Hari,
+  Jadwal Pelajaran), Rekap (Kehadiran Siswa `/rekapkehadiran`, Rekap Jam
+  Pelajaran `/rekapjampelajaran`). Menu **Guru/Siswa Masuk-Pulang hanya untuk
+  guru**; rute itu untuk admin dialihkan ke Dashboard (server memang sudah
+  menolak scan gerbang selain guru).
+- **Rekap Kehadiran**: baris = semua santri lembaga (roster Supabase) × tiap
+  tanggal aktif di rentang; hari libur/nonaktif dan tanggal setelah hari ini
+  dilewati. Masuk: jam + Tepat waktu/Terlambat/Sakit/Izin/Tidak scan. Pulang:
+  scan sungguhan = **Tepat waktu**; tidak scan = **Tidak tepat waktu**
+  (dianggap pulang/kembali ke asrama lebih dulu = ketidakpatuhan).
+- **Pulang otomatis** (`lib/pulangOtomatis.ts`): cron `0 12 * * *` (12:00 UTC =
+  19:00 WIB, lih. `triggers` di `wrangler.json`) menulis baris `pulang` untuk
+  santri yang sudah scan masuk hari itu tetapi tidak scan pulang, dengan
+  `status='terlambat'` (nilai sah selain `pulang`; CHECK tabel bersama tidak
+  diubah), `dicatat_oleh='sistem'`, `cara='manual'`. Penanda `dicatat_oleh` itulah
+  yang membedakannya dari scan sungguhan di rekap. Idempoten (PK tanggal+santri+
+  tipe), melewati hari libur/nonaktif, hanya untuk hari berjalan — tidak
+  mengisi data tanggal lampau. Kehadiran tanpa baris pulang pada tanggal lampau
+  (mis. sebelum cron aktif) tetap ditampilkan "Tidak tepat waktu" oleh rekap.
+- **Rekap Jam Pelajaran** hanya memuat sesi yang sudah dibuka guru (sesi dibuat
+  lazy dari jadwal), jadi jam yang tak pernah dibuka tidak muncul.
+
+### Presensi gerbang guru (foto + lokasi) & Tugas Dinas
+
+- **Guru Masuk/Pulang** (`/masukguru`, `/pulangguru`, semua peran guru): layar
+  memanggil `GET /api/presensi-guru/hari-ini` **lebih dulu**. Bila guru sedang
+  tugas dinas, tampil "Anda tidak diwajibkan absen masuk dan pulang karena
+  sedang tugas dinas: …" tanpa kamera; `POST /api/presensi-guru/:tipe` juga
+  menolaknya 409 di server. Selain itu: kamera depan → foto (dikecilkan di
+  peramban: sisi terpanjang 640 px, JPEG ≈ 60 KB) + lokasi GPS → kirim. Foto +
+  lokasi lengkap = hadir pada jam **server** (bukan jam perangkat). Pulang
+  mensyaratkan masuk. Idempoten (PK tanggal+guru+tipe).
+- Foto disimpan di R2 (binding `FOTO`, bucket `presensiv2-foto`, kunci
+  `guru/<tanggal>/<guru_id>-<tipe>.jpg`) dan **dihapus cron 23:00 WIB**
+  (`0 16 * * *`). Koordinat + jam tetap di D1 (`presensi_gerbang_guru`).
+  Belum ada layar admin untuk melihat foto/lokasi dan belum ada penolakan
+  berdasarkan lokasi (kelak wewenang kepala sekolah). Koordinat adalah data
+  pribadi: tidak pernah dikirim balik ke klien; tentukan masa simpannya kelak.
+- **Kedinasan › Tugas Dinas** (admin, `/tugasdinas`): pilih guru lembaga, tanggal
+  mulai (sampai opsional, maks. 31 hari), keterangan. Endpoint
+  `GET|POST /api/kedinasan/tugas-dinas`, `DELETE /api/kedinasan/tugas-dinas/:id`.
+  Tugas dinas yang beririsan untuk guru yang sama ditolak 409.
+- **Tabel baru** (additive, jangan ubah tabel bersama): lihat
+  `migrasi/0001_presensi_guru_gerbang.sql` (`presensi_gerbang_guru`, `tugas_dinas`).
+  Terapkan ke D1 sebelum deploy. Bucket R2 harus dibuat lebih dulu
+  (`npx wrangler r2 bucket create presensiv2-foto`). Dev lokal memakai R2
+  lokal (binding tanpa `remote`), jadi tidak menulis ke bucket produksi.
 
 ## Deploy
 

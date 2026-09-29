@@ -4,6 +4,7 @@ import {
 	ambilGuru,
 	ambilJadwalAdmin,
 	ambilKelas,
+	ambilPengaturanHari,
 	hapusJadwalAdmin,
 	tambahJadwalAdmin,
 	ubahJadwalAdmin,
@@ -19,19 +20,27 @@ export function JadwalPelajaran() {
 	const [kelas, setKelas] = useState<KelasRingkas[] | null>(null);
 	const [guru, setGuru] = useState<GuruRingkas[]>([]);
 	const [kelasId, setKelasId] = useState("");
-	const [hari, setHari] = useState(1);
+	// Hari yang ditampilkan mengikuti "Hari aktif" di halaman Hari — hari yang
+	// bukan hari sekolah tidak perlu jadwal.
+	const [hariAktif, setHariAktif] = useState<number[] | null>(null);
+	const [hari, setHari] = useState(0);
 	const [galat, setGalat] = useState<string | null>(null);
 
 	useEffect(() => {
 		let aktif = true;
-		Promise.all([ambilKelas(), ambilGuru()]).then(
-			([k, g]) => {
+		Promise.all([ambilKelas(), ambilGuru(), ambilPengaturanHari()]).then(
+			([k, g, p]) => {
 				if (!aktif) return;
 				setKelas(k);
 				setGuru(g);
 				if (k.length > 0) setKelasId(k[0].id);
+				const daftar = [...p.hari_aktif].sort((a, b) => a - b);
+				setHariAktif(daftar);
+				// Awali dengan hari ini bila aktif, selain itu hari aktif pertama.
+				const hariIni = ((new Date().getDay() + 6) % 7) + 1;
+				setHari(daftar.includes(hariIni) ? hariIni : (daftar[0] ?? 0));
 			},
-			(err) => aktif && setGalat(err instanceof GagalApi ? err.message : "Gagal memuat kelas/guru"),
+			(err) => aktif && setGalat(err instanceof GagalApi ? err.message : "Gagal memuat kelas, guru, atau hari aktif"),
 		);
 		return () => {
 			aktif = false;
@@ -39,20 +48,14 @@ export function JadwalPelajaran() {
 	}, []);
 
 	return (
-		<div className="container">
-			<div className="halaman-judul">
-				<h1>Jadwal Pelajaran</h1>
-				<p className="redup">Atur pelajaran, penanggung jawab, dan jam pelajaran per kelas untuk tiap hari.</p>
-			</div>
+		<div className="container container--lebar">
+			<div className="presensi-kepala">
+				<div className="halaman-judul">
+					<h1>Jadwal Pelajaran</h1>
+					<p className="redup">Atur pelajaran, penanggung jawab, dan jam pelajaran per kelas untuk tiap hari aktif.</p>
+				</div>
 
-			{galat && <p className="galat-kolom">{galat}</p>}
-
-			{kelas && kelas.length === 0 && (
-				<p className="redup">Belum ada kelas terdaftar untuk lembaga ini.</p>
-			)}
-
-			{kelas && kelas.length > 0 && (
-				<>
+				{kelas && kelas.length > 0 && (
 					<div className="kolom kolom--pilih-kelas">
 						<label htmlFor="pilih-kelas">Kelas</label>
 						<select id="pilih-kelas" value={kelasId} onChange={(e) => setKelasId(e.target.value)}>
@@ -63,23 +66,35 @@ export function JadwalPelajaran() {
 							))}
 						</select>
 					</div>
+				)}
+			</div>
 
-					<div className="segmen segmen--hari" role="tablist" aria-label="Pilih hari">
-						{NAMA_HARI.map((nama, i) => (
+			{galat && <p className="galat-kolom">{galat}</p>}
+
+			{kelas && kelas.length === 0 && <p className="redup">Belum ada kelas terdaftar untuk lembaga ini.</p>}
+
+			{kelas && kelas.length > 0 && hariAktif && hariAktif.length === 0 && (
+				<p className="redup">Belum ada hari aktif. Atur dulu di halaman Hari.</p>
+			)}
+
+			{kelas && kelas.length > 0 && hariAktif && hariAktif.length > 0 && (
+				<>
+					<div className="segmen segmen--hari" role="tablist" aria-label="Pilih hari aktif">
+						{hariAktif.map((h) => (
 							<button
-								key={nama}
+								key={h}
 								type="button"
 								role="tab"
-								aria-selected={hari === i + 1}
-								className={`segmen__tombol ${hari === i + 1 ? "segmen__tombol--aktif" : ""}`}
-								onClick={() => setHari(i + 1)}
+								aria-selected={hari === h}
+								className={`segmen__tombol ${hari === h ? "segmen__tombol--aktif" : ""}`}
+								onClick={() => setHari(h)}
 							>
-								{nama}
+								{NAMA_HARI[h - 1]}
 							</button>
 						))}
 					</div>
 
-					{kelasId && <DaftarJadwalHari kelasId={kelasId} hari={hari} guru={guru} />}
+					{kelasId && hari > 0 && <DaftarJadwalHari kelasId={kelasId} hari={hari} guru={guru} />}
 				</>
 			)}
 		</div>

@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { lembagaAdmin as lembagaAdminBersama } from "../lib/admin";
+import { namaGuru } from "../lib/guruLembaga";
 import { GagalRute } from "../lib/galat";
 import { daftarLibur, hapusLibur, liburPadaTanggal, tambahLibur } from "../lib/hariLibur";
 import {
@@ -25,14 +27,8 @@ export const pengaturanPembelajaran = new Hono<AppEnv>();
 // Seluruh halaman "Pembelajaran" (Hari + Jadwal Pelajaran) khusus tingkat
 // admin — sejalan dengan presensi-api lama: mengatur jadwal adalah wilayah
 // adminpresensi, bukan guru.
-function lembagaAdmin(orang: Orang): { id: string; nama: string } {
-	if (orang.tingkat !== "admin") {
-		throw new GagalRute(403, "Hanya admin presensi yang dapat mengatur pembelajaran");
-	}
-	const lembaga = orang.lembagaBoleh[0];
-	if (!lembaga) throw new GagalRute(403, "Anda tidak berwenang atas lembaga mana pun");
-	return lembaga;
-}
+const lembagaAdmin = (orang: Orang) =>
+	lembagaAdminBersama(orang, "Hanya admin presensi yang dapat mengatur pembelajaran");
 
 pengaturanPembelajaran.get("/pengaturan/hari", async (c) => {
 	const lembaga = lembagaAdmin(c.get("orang"));
@@ -94,15 +90,6 @@ pengaturanPembelajaran.get("/pengaturan/jadwal", async (c) => {
 	const hari = periksaHari(c.req.query("hari"));
 	return c.json(await daftarJadwal(c.env, lembaga.id, kelasId, hari));
 });
-
-async function namaGuru(env: Env, lembagaId: string, guruId: string | null, token: string): Promise<string | null> {
-	if (!guruId) return null;
-	const kode = await kodePeranGuruDiLembaga(env, lembagaId);
-	const daftar = await guruDenganPeran(env, token, kode);
-	const guru = daftar.find((g) => g.id === guruId);
-	if (!guru) throw new GagalRute(400, "Guru yang dipilih bukan bagian dari lembaga ini");
-	return guru.nama_lengkap;
-}
 
 async function namaKelas(env: Env, lembagaId: string, kelasId: string, token: string): Promise<string> {
 	const daftar = await kelasDiLembaga(env, token, lembagaId);

@@ -10,6 +10,18 @@ import {
 
 const NAMA_HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu"];
 
+type Mode = "libur" | "aktif";
+
+function formatTanggal(t: string): string {
+	return new Date(`${t}T12:00:00Z`).toLocaleDateString("id-ID", {
+		weekday: "long",
+		day: "numeric",
+		month: "long",
+		year: "numeric",
+		timeZone: "UTC",
+	});
+}
+
 export function Hari() {
 	const [hariAktif, setHariAktif] = useState<number[] | null>(null);
 	const [libur, setLibur] = useState<HariLibur[]>([]);
@@ -17,6 +29,8 @@ export function Hari() {
 	const [galat, setGalat] = useState<string | null>(null);
 	const [menyimpan, setMenyimpan] = useState(false);
 	const [pesan, setPesan] = useState<string | null>(null);
+	// Bawaan: tanggal libur (yang paling sering diubah); hari aktif mingguan jarang.
+	const [mode, setMode] = useState<Mode>("libur");
 
 	useEffect(() => {
 		let aktif = true;
@@ -59,49 +73,76 @@ export function Hari() {
 		}
 	}
 
-	if (memuat) return <div className="container">Memuat…</div>;
+	if (memuat) return <div className="container container--lebar">Memuat…</div>;
 
+	// Susunan sama dengan halaman Siswa Masuk/Pulang: judul + toggle sebaris
+	// (toggle penuh lebar di ponsel), lalu satu kartu untuk mode yang dipilih.
 	return (
-		<div className="container">
-			<div className="halaman-judul">
-				<h1>Hari</h1>
-				<p className="redup">Atur hari aktif dalam seminggu dan tanggal libur khusus.</p>
+		<div className="container container--lebar">
+			<div className="presensi-kepala">
+				<div className="halaman-judul">
+					<h1>Hari</h1>
+					<p className="redup">Atur tanggal libur khusus dan hari aktif dalam seminggu.</p>
+				</div>
+
+				<div className="segmen" role="tablist" aria-label="Pengaturan hari">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={mode === "libur"}
+						className={`segmen__tombol ${mode === "libur" ? "segmen__tombol--aktif" : ""}`}
+						onClick={() => setMode("libur")}
+					>
+						Hari Libur
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={mode === "aktif"}
+						className={`segmen__tombol ${mode === "aktif" ? "segmen__tombol--aktif" : ""}`}
+						onClick={() => setMode("aktif")}
+					>
+						Hari Aktif
+					</button>
+				</div>
 			</div>
 
 			{galat && <p className="galat-kolom">{galat}</p>}
 
-			<section className="kartu" aria-labelledby="judul-hari-aktif">
-				<h2 id="judul-hari-aktif">Hari aktif</h2>
-				<p className="redup">Hari yang dipilih dianggap hari sekolah; sisanya libur mingguan.</p>
-				<div className="pilihan-hari" role="group" aria-labelledby="judul-hari-aktif">
-					{NAMA_HARI.map((nama, i) => {
-						const hari = i + 1;
-						const aktif = (hariAktif ?? []).includes(hari);
-						return (
-							<button
-								key={hari}
-								type="button"
-								className={`pilihan-hari__butir ${aktif ? "pilihan-hari__butir--aktif" : ""}`}
-								aria-pressed={aktif}
-								onClick={() => toggleHari(hari)}
-							>
-								{nama}
-							</button>
-						);
-					})}
-				</div>
-				{pesan && <p className="pesan-sukses">{pesan}</p>}
-				<button
-					type="button"
-					className="tombol"
-					onClick={() => void simpan()}
-					disabled={menyimpan || !hariAktif || hariAktif.length === 0}
-				>
-					{menyimpan ? "Menyimpan…" : "Simpan hari aktif"}
-				</button>
-			</section>
-
-			<LiburLembaga libur={libur} onUbah={setLibur} />
+			{mode === "libur" ? (
+				<LiburLembaga libur={libur} onUbah={setLibur} />
+			) : (
+				<section className="kartu" aria-labelledby="judul-hari-aktif">
+					<h2 id="judul-hari-aktif">Hari aktif</h2>
+					<p className="redup">Hari yang dipilih dianggap hari sekolah; sisanya libur mingguan.</p>
+					<div className="pilihan-hari" role="group" aria-labelledby="judul-hari-aktif">
+						{NAMA_HARI.map((nama, i) => {
+							const hari = i + 1;
+							const aktif = (hariAktif ?? []).includes(hari);
+							return (
+								<button
+									key={hari}
+									type="button"
+									className={`pilihan-hari__butir ${aktif ? "pilihan-hari__butir--aktif" : ""}`}
+									aria-pressed={aktif}
+									onClick={() => toggleHari(hari)}
+								>
+									{nama}
+								</button>
+							);
+						})}
+					</div>
+					{pesan && <p className="pesan-sukses">{pesan}</p>}
+					<button
+						type="button"
+						className="tombol tombol--simpan-hari"
+						onClick={() => void simpan()}
+						disabled={menyimpan || !hariAktif || hariAktif.length === 0}
+					>
+						{menyimpan ? "Menyimpan…" : "Simpan hari aktif"}
+					</button>
+				</section>
+			)}
 		</div>
 	);
 }
@@ -177,8 +218,8 @@ function LiburLembaga({ libur, onUbah }: { libur: HariLibur[]; onUbah: (l: HariL
 					{libur.map((l) => (
 						<li key={l.tanggal} className="daftar-libur__baris">
 							<div>
-								<span className="daftar-libur__tanggal">{l.tanggal}</span>
-								{l.keterangan && <span className="redup"> — {l.keterangan}</span>}
+								<span className="daftar-libur__tanggal">{formatTanggal(l.tanggal)}</span>
+								{l.keterangan && <span className="redup daftar-libur__ket">{l.keterangan}</span>}
 							</div>
 							<button
 								type="button"

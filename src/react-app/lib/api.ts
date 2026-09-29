@@ -24,7 +24,8 @@ export function setPeranAktif(kode: string | null) {
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 	const headers = new Headers(init.headers);
 	if (peranAktif) headers.set("X-Peran", peranAktif);
-	if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+	// FormData (unggah foto) diberi Content-Type + batas multipart oleh peramban sendiri.
+	if (typeof init.body === "string" && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
 	let respons: Response;
 	try {
@@ -102,7 +103,7 @@ const AWALAN_CACHE_JADWAL = "presensiv2:jadwal-hari-ini";
 // Tanggal WIB (bukan zona perangkat pengguna) supaya kunci cache "reset"
 // tepat tengah malam WIB, sesuai zona bawaan server (lih. lib/env.ts di
 // worker — default juga Asia/Jakarta).
-function tanggalWib(): string {
+export function tanggalWib(): string {
 	return new Intl.DateTimeFormat("en-CA", {
 		timeZone: ZONA_TAMPIL,
 		year: "numeric",
@@ -250,5 +251,109 @@ export const tambahJadwalAdmin = (badan: BadanJadwalAdmin) =>
 export const ubahJadwalAdmin = (id: string, badan: BadanJadwalAdmin) =>
 	api<BarisJadwalAdmin>(`/pengaturan/jadwal/${id}`, { method: "PATCH", body: JSON.stringify(badan) });
 
+// ---- Presensi gerbang guru (foto + lokasi) ----
+
+export type StatusGuruHariIni = {
+	tanggal: string;
+	dinas: { mulai: string; sampai: string; keterangan: string } | null;
+	libur: { keterangan: string | null } | null;
+	hari_aktif: boolean;
+	masuk: { waktu: string } | null;
+	pulang: { waktu: string } | null;
+};
+
+export type TipeGuru = "masuk" | "pulang";
+
+export const presensiGuruHariIni = () => api<StatusGuruHariIni>("/presensi-guru/hari-ini");
+
+export function kirimPresensiGuru(
+	tipe: TipeGuru,
+	foto: Blob,
+	lokasi: { lat: number; lng: number; akurasi: number | null },
+) {
+	const form = new FormData();
+	form.append("foto", foto, "foto.jpg");
+	form.append("lat", String(lokasi.lat));
+	form.append("lng", String(lokasi.lng));
+	if (lokasi.akurasi !== null) form.append("akurasi", String(lokasi.akurasi));
+	return api<{ tipe: TipeGuru; waktu: string }>(`/presensi-guru/${tipe}`, { method: "POST", body: form });
+}
+
+// ---- Kedinasan (admin): tugas dinas guru ----
+
+export type TugasDinas = {
+	id: string;
+	guru_id: string;
+	guru_nama: string;
+	mulai: string;
+	sampai: string;
+	keterangan: string;
+	dibuat_oleh_nama: string;
+};
+
+export const daftarTugasDinas = () => api<TugasDinas[]>("/kedinasan/tugas-dinas");
+export const tambahTugasDinas = (badan: { guru_id: string; mulai: string; sampai: string; keterangan: string }) =>
+	api<TugasDinas>("/kedinasan/tugas-dinas", { method: "POST", body: JSON.stringify(badan) });
+export const hapusTugasDinas = (id: string) =>
+	api<{ dihapus: true }>(`/kedinasan/tugas-dinas/${id}`, { method: "DELETE" });
+
 export const hapusJadwalAdmin = (id: string) =>
 	api<{ dihapus: true }>(`/pengaturan/jadwal/${id}`, { method: "DELETE" });
+
+// ---- Rekap (admin) ----
+
+export type SelRekap = { jam: string | null; keterangan: string };
+
+export type BarisRekapHarian = {
+	tanggal: string;
+	santri_id: string;
+	santri_nama: string;
+	kelas_nama: string | null;
+	masuk: SelRekap;
+	pulang: SelRekap;
+};
+
+export type RekapKehadiran = {
+	dari: string;
+	sampai: string;
+	tanggal_dilewati: { tanggal: string; alasan: string }[];
+	baris: BarisRekapHarian[];
+};
+
+export type SantriRekapSesi = {
+	santri_id: string;
+	santri_nama: string;
+	status: string;
+	keterangan: string | null;
+	diubah_oleh: string | null;
+	diubah_pada: string | null;
+};
+
+export type SesiRekap = {
+	id: string;
+	tanggal: string;
+	kelas_id: string;
+	kelas_nama: string;
+	mapel: string;
+	jam_ke: number | null;
+	mulai: string | null;
+	selesai: string | null;
+	guru_nama: string | null;
+	dibuat_oleh_nama: string;
+	diabsen: boolean;
+	santri: SantriRekapSesi[];
+};
+
+export type RekapJamPelajaran = { dari: string; sampai: string; sesi: SesiRekap[] };
+
+function queryRekap(dari: string, sampai: string, kelasId: string): string {
+	const q = new URLSearchParams({ dari, sampai });
+	if (kelasId) q.set("kelas_id", kelasId);
+	return q.toString();
+}
+
+export const ambilRekapKehadiran = (dari: string, sampai: string, kelasId = "") =>
+	api<RekapKehadiran>(`/rekap/kehadiran?${queryRekap(dari, sampai, kelasId)}`);
+
+export const ambilRekapJamPelajaran = (dari: string, sampai: string, kelasId = "") =>
+	api<RekapJamPelajaran>(`/rekap/jam-pelajaran?${queryRekap(dari, sampai, kelasId)}`);
