@@ -255,7 +255,7 @@ export const ubahJadwalAdmin = (id: string, badan: BadanJadwalAdmin) =>
 
 export type StatusGuruHariIni = {
 	tanggal: string;
-	dinas: { mulai: string; sampai: string; keterangan: string } | null;
+	dinas: { jenis: JenisKetidakhadiran; mulai: string; sampai: string; keterangan: string } | null;
 	libur: { keterangan: string | null } | null;
 	hari_aktif: boolean;
 	masuk: { waktu: string } | null;
@@ -331,23 +331,44 @@ export async function fotoPresensiGuru(tanggal: string, guruId: string, tipe: Ti
 	return respons.blob();
 }
 
-// ---- Kedinasan (admin): tugas dinas guru ----
+// ---- Ketidakhadiran guru (admin): tugas dinas, sakit, kepentingan ----
 
-export type TugasDinas = {
+// `keluarga` = "Kepentingan" (nilai historis di D1; lihat NAMA_JENIS di worker/lib/tugasDinas.ts).
+export type JenisKetidakhadiran = "dinas" | "sakit" | "keluarga";
+
+export const NAMA_JENIS: Record<JenisKetidakhadiran, string> = {
+	dinas: "Tugas dinas",
+	sakit: "Sakit",
+	keluarga: "Kepentingan",
+};
+
+export type Ketidakhadiran = {
 	id: string;
 	guru_id: string;
 	guru_nama: string;
+	jenis: JenisKetidakhadiran;
 	mulai: string;
 	sampai: string;
 	keterangan: string;
 	dibuat_oleh_nama: string;
 };
 
-export const daftarTugasDinas = () => api<TugasDinas[]>("/kedinasan/tugas-dinas");
-export const tambahTugasDinas = (badan: { guru_id: string; mulai: string; sampai: string; keterangan: string }) =>
-	api<TugasDinas>("/kedinasan/tugas-dinas", { method: "POST", body: JSON.stringify(badan) });
-export const hapusTugasDinas = (id: string) =>
-	api<{ dihapus: true }>(`/kedinasan/tugas-dinas/${id}`, { method: "DELETE" });
+export const historiKetidakhadiran = (dari: string, sampai: string, jenis: "" | JenisKetidakhadiran = "") => {
+	const q = new URLSearchParams({ dari, sampai });
+	if (jenis) q.set("jenis", jenis);
+	return api<Ketidakhadiran[]>(`/ketidakhadiran-guru?${q.toString()}`);
+};
+
+export const tambahKetidakhadiran = (badan: {
+	jenis: JenisKetidakhadiran;
+	guru_id: string;
+	mulai: string;
+	sampai: string;
+	keterangan: string;
+}) => api<Ketidakhadiran>("/ketidakhadiran-guru", { method: "POST", body: JSON.stringify(badan) });
+
+export const hapusKetidakhadiran = (id: string) =>
+	api<{ dihapus: true }>(`/ketidakhadiran-guru/${id}`, { method: "DELETE" });
 
 export const hapusJadwalAdmin = (id: string) =>
 	api<{ dihapus: true }>(`/pengaturan/jadwal/${id}`, { method: "DELETE" });

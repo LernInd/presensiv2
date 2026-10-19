@@ -317,6 +317,15 @@ selain `/api/*`.
   dilewati. Masuk: jam + Tepat waktu/Terlambat/Sakit/Izin/Tidak scan. Pulang:
   scan sungguhan = **Tepat waktu**; tidak scan = **Tidak tepat waktu**
   (dianggap pulang/kembali ke asrama lebih dulu = ketidakpatuhan).
+- **Dua jenis unduhan** di menu Rekap › Rekap Kehadiran (`/rekap`), masing-masing
+  satu permintaan: **Per Pembelajaran** (`rekap-pembelajaran-….xlsx`, dari
+  `/api/rekap/jam-pelajaran`) dan **Scan Masuk/Pulang** (`rekap-scan-….xlsx`, dari
+  `/api/rekap/kehadiran`). Di kedua berkas **setiap kelas punya worksheet sendiri**
+  (santri tanpa kelas → "Tanpa Kelas"; nama worksheet disanitasi, maks. 31
+  karakter), kolom pertama **Santri**, kedua **Tanggal**, dan baris diurut
+  **nama santri lalu tanggal** (Per Pembelajaran: lalu jam ke). Penyusunan
+  lembar ada di `src/react-app/lib/susunRekap.ts`, penulisan .xlsx di
+  `eksporRekap.ts`.
 - **Pulang otomatis** (`lib/pulangOtomatis.ts`): cron `0 12 * * *` (12:00 UTC =
   19:00 WIB, lih. `triggers` di `wrangler.json`) menulis baris `pulang` untuk
   santri yang sudah scan masuk hari itu tetapi tidak scan pulang, dengan
@@ -355,12 +364,34 @@ selain `/api/*`.
   (`npx wrangler r2 bucket create presensiv2-foto`). Dev lokal memakai R2
   lokal (binding tanpa `remote`), jadi tidak menulis ke bucket produksi.
 
+### Ketidakhadiran Guru (admin presensi): tugas dinas, izin, histori
+
+- Kategori sidebar **Ketidakhadiran Guru** (sebelumnya "Kedinasan") berisi **Tugas
+  Dinas** (`/tugasdinas`), **Sakit & Kepentingan** (`/sakitkepentingan`, dropdown
+  jenis *Sakit* atau *Kepentingan* — keluarga, urusan pribadi, dll.; keterangan
+  menjelaskannya), dan **Histori** (`/historiketidakhadiran`: daftar semua guru yang
+  dinas/sakit/izin pada rentang tanggal, bisa disaring per jenis, dan data bisa
+  dihapus/dibatalkan; bawaan 30 hari ke belakang s.d. 31 hari ke depan).
+- Ketiganya satu logika: tabel `tugas_dinas` kini punya kolom `jenis` (`dinas` |
+  `sakit` | `keluarga` — nilai `keluarga` historis, tampil sebagai "Kepentingan") — `migrasi/0004_ketidakhadiran_guru.sql`; nama tabel
+  dipertahankan, baris lama otomatis `dinas`. Guru yang tercatat tidak
+  diwajibkan presensi gerbang pada rentang itu (layar guru menyebut alasannya,
+  server menolak scan 409), menimpa scan yang sempat ada di rekap dan
+  Monitoring, dan satu guru tidak bisa punya dua data yang beririsan (apa pun
+  jenisnya). Endpoint: `GET|POST /api/ketidakhadiran-guru`,
+  `DELETE /api/ketidakhadiran-guru/:id` (menggantikan `/api/kedinasan/tugas-dinas`).
+
 ### Rekap kehadiran guru (admin presensi)
 
 - `GET /api/rekap/guru?dari=&sampai=` (admin, maks. 31 hari) → menu **Rekap ›
   Rekap Kehadiran Guru** (`/rekapguru`) mengunduh `.xlsx` satu lembar: Tanggal,
   Guru, Jam Masuk, Jam Pulang, Keterangan. Baris = semua guru lembaga × tanggal
   aktif (libur/nonaktif dilewati; guru dinas ditandai di keterangan).
+- **Tugas dinas menimpa scan**: bila guru punya tugas dinas pada tanggal itu
+  (mis. dinas diinput admin sesudah guru sempat scan masuk), jam masuk/pulang
+  dikosongkan dan keterangan menjadi "Tugas dinas: …" — di rekap admin maupun di
+  Monitoring kepala sekolah. Baris scan **tidak dihapus**, jadi bila tugas dinas
+  dibatalkan, data scan tampil kembali.
 - Presensi yang ditandai **tidak valid oleh kepala sekolah** tidak menampilkan
   jamnya: hanya jam yang ditandai yang dikosongkan (masuk invalid → jam masuk
   kosong; pulang invalid → jam pulang kosong) dan keterangan menyebut mana yang

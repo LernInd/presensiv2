@@ -38,8 +38,12 @@ const KATEGORI_ADMIN: Kategori[] = [
 		],
 	},
 	{
-		label: "Kedinasan",
-		butir: [{ label: "Tugas Dinas", tujuan: "/tugasdinas" }],
+		label: "Ketidakhadiran Guru",
+		butir: [
+			{ label: "Tugas Dinas", tujuan: "/tugasdinas" },
+			{ label: "Sakit & Kepentingan", tujuan: "/sakitkepentingan" },
+			{ label: "Histori", tujuan: "/historiketidakhadiran" },
+		],
 	},
 	{
 		label: "Rekap",

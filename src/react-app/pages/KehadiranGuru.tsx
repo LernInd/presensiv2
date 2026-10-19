@@ -127,7 +127,7 @@ export function KehadiranGuru() {
 							<div className="kartu-guru__isi">
 								{g.dinas && (
 									<p className="info-dinas" role="status">
-										Tugas dinas: {g.dinas}
+										{g.dinas}
 									</p>
 								)}
 								{(["masuk", "pulang"] as const).map((tipe) => (
@@ -154,7 +154,7 @@ export function KehadiranGuru() {
 }
 
 function StatusRingkas({ guru }: { guru: BarisMonitorGuru }) {
-	if (guru.dinas) return <span className="lencana-status lencana-status--izin">Dinas</span>;
+	if (guru.dinas) return <span className="lencana-status lencana-status--izin">Tidak wajib</span>;
 	const ada = [guru.masuk, guru.pulang].filter((p): p is PresensiGuruMonitor => p !== null);
 	if (ada.length === 0) return <span className="lencana-status lencana-status--sakit">Belum presensi</span>;
 	const tidakValid = ada.some((p) => !p.valid);
@@ -187,7 +187,7 @@ function BarisPresensi({
 		return (
 			<div className="presensi-baris">
 				<span className="presensi-baris__label">{label}</span>
-				<span className="redup">{dinas ? "Tidak wajib (dinas)" : "Belum presensi"}</span>
+				<span className="redup">{dinas ? "Tidak wajib (dinas/izin)" : "Belum presensi"}</span>
 			</div>
 		);
 	}

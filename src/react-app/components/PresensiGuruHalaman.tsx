@@ -8,6 +8,12 @@ import {
 } from "../lib/api";
 import { ambilFotoKecil, ambilLokasi, type LokasiGuru } from "../lib/foto";
 
+const SEBAB_TIDAK_WAJIB = {
+	dinas: "sedang tugas dinas",
+	sakit: "sedang sakit",
+	keluarga: "ada kepentingan",
+} as const;
+
 const jamWib = (iso: string) =>
 	new Date(iso).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit" });
 
@@ -131,7 +137,7 @@ export function PresensiGuruHalaman({ tipe, judul }: { tipe: TipeGuru; judul: st
 					<div className="info-dinas" role="status">
 						<h2>Tidak perlu absen hari ini</h2>
 						<p>
-							Anda tidak diwajibkan absen masuk dan pulang karena sedang tugas dinas:{" "}
+							Anda tidak diwajibkan absen masuk dan pulang karena {SEBAB_TIDAK_WAJIB[status.dinas.jenis]}:{" "}
 							<strong>{status.dinas.keterangan}</strong>
 						</p>
 						<p className="redup">

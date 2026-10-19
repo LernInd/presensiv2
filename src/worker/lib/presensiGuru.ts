@@ -2,7 +2,7 @@ import { GagalRute } from "./galat";
 import { liburPadaTanggal } from "./hariLibur";
 import { ambilPengaturan } from "./pengaturanLembaga";
 import type { Orang } from "./pengguna";
-import { dinasPadaTanggal } from "./tugasDinas";
+import { ketidakhadiranPadaTanggal, pesanTidakWajib, type Jenis } from "./tugasDinas";
 import { hariAktifBerlaku, hariLokal, tanggalLokal } from "./waktu";
 
 export const TIPE_GURU = ["masuk", "pulang"] as const;
@@ -19,7 +19,8 @@ type BarisGerbang = { tipe: TipeGuru; waktu: string };
 
 export type StatusGuruHariIni = {
 	tanggal: string;
-	dinas: { mulai: string; sampai: string; keterangan: string } | null;
+	// Nama bidang tetap `dinas` untuk ketiga jenis (tugas dinas, izin sakit, izin keperluan keluarga).
+	dinas: { jenis: Jenis; mulai: string; sampai: string; keterangan: string } | null;
 	libur: { keterangan: string | null } | null;
 	hari_aktif: boolean;
 	masuk: { waktu: string } | null;
@@ -45,7 +46,7 @@ export async function statusGuruHariIni(env: Env, orang: Orang): Promise<StatusG
 	const tanggal = tanggalLokal(sekarang, zona);
 
 	const [dinas, libur, { results }] = await Promise.all([
-		dinasPadaTanggal(env, orang.uid, tanggal),
+		ketidakhadiranPadaTanggal(env, orang.uid, tanggal),
 		liburPadaTanggal(env, lembagaId, tanggal),
 		env.DB.prepare("select tipe, waktu from presensi_gerbang_guru where tanggal = ? and guru_id = ?")
 			.bind(tanggal, orang.uid)
@@ -59,7 +60,7 @@ export async function statusGuruHariIni(env: Env, orang: Orang): Promise<StatusG
 
 	return {
 		tanggal,
-		dinas: dinas ? { mulai: dinas.mulai, sampai: dinas.sampai, keterangan: dinas.keterangan } : null,
+		dinas: dinas ? { jenis: dinas.jenis, mulai: dinas.mulai, sampai: dinas.sampai, keterangan: dinas.keterangan } : null,
 		libur: libur ? { keterangan: libur.keterangan } : null,
 		// Lembaga tanpa baris pengaturan: semua hari dianggap aktif (sama seperti hariAktifBerlaku).
 		hari_aktif: hariAktifBerlaku(pengaturan?.hari_aktif ?? "", hariLokal(sekarang, zona)),
@@ -110,10 +111,7 @@ export async function catatPresensiGuru(
 ): Promise<{ tipe: TipeGuru; waktu: string; sudah: boolean; tanggal: string }> {
 	const status = await statusGuruHariIni(env, orang);
 	if (status.dinas) {
-		throw new GagalRute(
-			409,
-			`Anda tidak diwajibkan absen masuk dan pulang karena sedang tugas dinas: ${status.dinas.keterangan}`,
-		);
+		throw new GagalRute(409, pesanTidakWajib(status.dinas.jenis, status.dinas.keterangan));
 	}
 	if (!status.hari_aktif) throw new GagalRute(409, "Hari ini bukan hari aktif");
 	if (status.libur) {

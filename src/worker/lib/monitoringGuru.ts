@@ -3,6 +3,7 @@ import type { Orang } from "./pengguna";
 import { kodePeranGuruDiLembaga } from "./peran";
 import { tipeGuruSah, type TipeGuru } from "./presensiGuru";
 import { guruDenganPeran, uuid } from "./supabase";
+import { labelKetidakhadiran, type Jenis } from "./tugasDinas";
 import { periksaTanggal } from "./validasiPembelajaran";
 
 const MAKS_KETERANGAN = 200;
@@ -97,27 +98,31 @@ export async function kehadiranGuru(
 			.bind(lembagaId, tanggal)
 			.all<BarisGerbang>(),
 		env.DB.prepare(
-			"select guru_id, keterangan from tugas_dinas where lembaga_id = ? and mulai <= ? and sampai >= ?",
+			"select guru_id, jenis, keterangan from tugas_dinas where lembaga_id = ? and mulai <= ? and sampai >= ?",
 		)
 			.bind(lembagaId, tanggal, tanggal)
-			.all<{ guru_id: string; keterangan: string }>(),
+			.all<{ guru_id: string; jenis: Jenis; keterangan: string }>(),
 	]);
 
 	// Satu guru bisa memegang beberapa peran → satu baris saja per orang.
 	const nama = new Map(daftarGuru.map((g) => [g.id, g.nama_lengkap]));
 	for (const g of gerbang.results) if (!nama.has(g.guru_id)) nama.set(g.guru_id, g.guru_nama);
-	const ketDinas = new Map(dinas.results.map((d) => [d.guru_id, d.keterangan]));
+	// Label siap tampil: "Tugas dinas: …", "Izin sakit: …", "Izin keperluan keluarga: …".
+	const ketDinas = new Map(dinas.results.map((d) => [d.guru_id, labelKetidakhadiran(d.jenis, d.keterangan)]));
 	for (const d of dinas.results) if (!nama.has(d.guru_id)) nama.set(d.guru_id, "(guru tidak terdaftar)");
 
 	const guru = [...nama.entries()]
 		.map(([id, guruNama]): BarisMonitorGuru => {
 			const baris = gerbang.results.filter((g) => g.guru_id === id);
+			const dinasGuru = ketDinas.get(id) ?? null;
 			return {
 				guru_id: id,
 				guru_nama: guruNama,
-				dinas: ketDinas.get(id) ?? null,
-				masuk: ringkas(baris.find((b) => b.tipe === "masuk")),
-				pulang: ringkas(baris.find((b) => b.tipe === "pulang")),
+				dinas: dinasGuru,
+				// Tugas dinas menimpa scan: guru yang sedang dinas tidak diwajibkan presensi,
+				// jadi scan yang sempat tercatat tidak ditampilkan (barisnya tidak dihapus).
+				masuk: dinasGuru ? null : ringkas(baris.find((b) => b.tipe === "masuk")),
+				pulang: dinasGuru ? null : ringkas(baris.find((b) => b.tipe === "pulang")),
 			};
 		})
 		.sort((a, b) => urutNamaDepan(a.guru_nama, b.guru_nama));

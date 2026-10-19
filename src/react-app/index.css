@@ -1437,6 +1437,92 @@ select:focus-visible {
 	}
 }
 
+/* Ketidakhadiran Guru › Histori: kotak berbaris ke bawah, lima per halaman */
+.daftar-histori {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.daftar-histori__kotak {
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.daftar-histori__isi {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	flex: 1 1 240px;
+	min-width: 0;
+}
+
+/* Baris atas: nama di kiri, status (lencana) di sampingnya. */
+.daftar-histori__atas {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+}
+
+.daftar-histori__nama {
+	font-size: 1.0625rem;
+}
+
+/* Rincian berlabel: Tanggal dan Keterangan, label tetap sejajar. */
+.daftar-histori__rincian {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: 0;
+}
+
+.daftar-histori__rincian > div {
+	display: grid;
+	grid-template-columns: 88px minmax(0, 1fr);
+	gap: 8px;
+}
+
+.daftar-histori__rincian dt {
+	color: var(--redup);
+	font-size: 0.875rem;
+}
+
+.daftar-histori__rincian dd {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.paginasi {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+}
+
+.paginasi__tombol {
+	width: auto;
+	min-width: 40px;
+	min-height: 40px;
+}
+
+.paginasi__celah {
+	min-width: 20px;
+	text-align: center;
+	color: var(--redup);
+}
+
+.paginasi__info {
+	text-align: center;
+}
+
 /* Monitoring › Kehadiran Guru (kepala sekolah) */
 .kolom--tanggal {
 	width: 100%;
@@ -1613,6 +1699,20 @@ select:focus-visible {
 	grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 	align-items: end;
 	gap: 12px 16px;
+}
+
+/* Dua tombol unduh berdampingan di layar lebar, bertumpuk di ponsel. */
+.filter-rekap__aksi {
+	grid-column: 1 / -1;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 10px;
+}
+
+@media (min-width: 640px) {
+	.filter-rekap__aksi {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 }
 
 .filter-rekap__galat {
