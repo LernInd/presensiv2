@@ -433,6 +433,35 @@ selain `/api/*`.
   status ini hanya terlihat oleh kepala sekolah. Admin presensi tidak melihat
   foto/lokasi.
 
+### Keamanan — catatan hasil pemeriksaan
+
+- Hak admin/kepala sekolah dinilai **per lembaga** (`lib/admin.ts`:
+  `lembagaAdmin`/`lembagaKepsek` memilih lembaga tempat pengguna benar-benar
+  bertingkat itu), bukan dari tingkat tertinggi gabungan + lembaga pertama.
+- Halaman statis mendapat header lewat `public/_headers` (CSP tanpa inline/eval
+  script, `frame-ancestors 'none'`, HSTS, `Permissions-Policy` kamera/lokasi
+  hanya origin sendiri). Bila CSP memblokir sesuatu yang sah, longgarkan hanya
+  direktif yang bersangkutan. Jawaban `/api/*` diberi header oleh `secureHeaders`.
+- Pencarian alamat (Nominatim) dibatasi: titik yang baru gagal tidak dicoba lagi
+  selama 1 jam, dan isi susulan per lembaga hanya satu eksekusi per 30 detik
+  (penanda di Cache API, tanpa tabel).
+- **RLS Supabase per cakupan peran** (`migrasi-supabase/20261020_batasi_rls_santri_per_cakupan.sql`,
+  sudah diterapkan): `santri`, `santri_lembaga`, `santri_kelas` hanya dapat dibaca
+  sesuai `public.peran_cakupan` (semua | gender | lembaga) lewat
+  `public.boleh_santri()`; view `v_santri` dkk. (security_invoker) mewarisinya.
+  Guru/adminpresensi/kepala sekolah hanya santri lembaganya; `*_putra`/`*_putri`,
+  bendahara, fotografer sesuai gender; admin_kegiatan, admin_keuangan, kesehatan,
+  adminkesehatan, adminperizinan, psb_* semua. Tabel acuan (lembaga, kelas, kamar,
+  asrama, roles, wilayah) tetap terbaca semua pengguna login. **Peran baru wajib
+  diberi baris di `peran_cakupan`** — tanpa baris, peran itu tidak melihat santri
+  (fail-closed). Peran→lembaga ada di dua tempat (D1 `peran_lembaga` untuk worker,
+  `peran_cakupan` untuk RLS): ubah keduanya bersama. Periksa peran tanpa cakupan:
+  `select code from roles r where is_active and not exists (select 1 from peran_cakupan p where p.peran_code = r.code);`
+  Rollback: `migrasi-supabase/rollback_batasi_rls_santri.sql`.
+- `v_guru_presensi` (SECURITY DEFINER) dan `is_admin_kegiatan()` sengaja dibiarkan:
+  keduanya dibutuhkan policy/RLS dan daftar guru untuk admin; mengubahnya
+  memutus fitur.
+
 ## Deploy
 
 ```bash

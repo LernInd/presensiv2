@@ -74,7 +74,9 @@ export async function siapkanScan(env: Env, token: string, orang: Orang, tipe: T
 	// hanya di layar pencarian, supaya QR kartu dari lembaga lain juga tertolak.
 	const lembagaId = (santri.lembaga_id ?? []).find((id) => orang.bolehLembaga(id));
 	if (!lembagaId) {
-		throw new GagalRute(403, "Santri ini bukan bagian dari lembaga yang Anda kelola");
+		// Sama dengan santri di luar cakupan RLS (yang tak terbaca sama sekali): jangan
+		// membedakan "ada tapi bukan lembaga Anda" dari "tidak ada".
+		throw new GagalRute(404, "Santri tidak ditemukan");
 	}
 
 	const lembagaNama = orang.lembagaBoleh.find((l) => l.id === lembagaId)?.nama ?? "";

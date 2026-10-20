@@ -1,0 +1,18 @@
+# Header keamanan untuk halaman statis (HTML/JS/CSS). Jawaban /api/* diberi
+# header oleh worker (secureHeaders di src/worker/index.ts) — berkas ini hanya
+# berlaku untuk aset yang dilayani Cloudflare assets.
+#
+# CSP: skrip hanya dari origin sendiri (tanpa inline/eval); gaya inline diizinkan
+# karena React memakai atribut style; gambar dari origin sendiri, blob:/data:
+# (pratinjau foto, ikon), dan Supabase Storage (foto santri/pengguna);
+# connect-src 'self' karena semua panggilan lewat /api/* (geocoding dilakukan
+# di worker, bukan di peramban); frame-ancestors 'none' mencegah clickjacking.
+# Jika CSP memblokir sesuatu yang sah, pesan pelanggarannya muncul di konsol
+# peramban — longgarkan hanya direktif yang bersangkutan.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self'; font-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Permissions-Policy: camera=(self), geolocation=(self), microphone=(), payment=(), usb=()

@@ -1,4 +1,4 @@
-SUPABASE_URL=https://jnclaxnmylplhlmgjuog.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_Vj1d9u1a9T-8zelJ3tbltA_fM-5sEc3
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_<isi-dari-dashboard-supabase>
 LOGIN_EMAIL_DOMAIN=admin-kegiatan.internal
 ZONA=Asia/Jakarta
