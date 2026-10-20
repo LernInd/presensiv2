@@ -10,10 +10,13 @@ export function FilterRekap({
 	memuat,
 	onUnduh,
 	tanpaKelas = false,
+	aksi,
 }: {
 	nilai: NilaiFilter;
 	memuat: boolean;
-	onUnduh: (n: NilaiFilter) => void;
+	onUnduh: (n: NilaiFilter, kunci: string) => void;
+	/** Beberapa jenis unduhan: satu tombol per jenis (tanpa ini, satu tombol "Unduh Excel"). */
+	aksi?: { kunci: string; label: string }[];
 	/** Rekap guru tidak dipilah per kelas: dropdown kelas disembunyikan. */
 	tanpaKelas?: boolean;
 }) {
@@ -26,12 +29,16 @@ export function FilterRekap({
 		ambilKelas().then(setKelas, () => setKelas([]));
 	}, [tanpaKelas]);
 
-	function kirim(e: FormEvent) {
-		e.preventDefault();
+	function unduh(kunci: string) {
 		if (!draf.dari || !draf.sampai) return setGalat("Isi tanggal awal dan tanggal akhir");
 		if (draf.dari > draf.sampai) return setGalat("Tanggal awal tidak boleh setelah tanggal akhir");
 		setGalat(null);
-		onUnduh(draf);
+		onUnduh(draf, kunci);
+	}
+
+	function kirim(e: FormEvent) {
+		e.preventDefault();
+		if (!aksi) unduh("");
 	}
 
 	return (
@@ -63,9 +70,19 @@ export function FilterRekap({
 				</select>
 			</div>
 			)}
-			<button type="submit" className="tombol" disabled={memuat}>
-				{memuat ? "Menyiapkan berkas…" : "Unduh Excel (.xlsx)"}
-			</button>
+			{aksi ? (
+				<div className="filter-rekap__aksi">
+					{aksi.map((a) => (
+						<button key={a.kunci} type="button" className="tombol" disabled={memuat} onClick={() => unduh(a.kunci)}>
+							{memuat ? "Menyiapkan berkas…" : a.label}
+						</button>
+					))}
+				</div>
+			) : (
+				<button type="submit" className="tombol" disabled={memuat}>
+					{memuat ? "Menyiapkan berkas…" : "Unduh Excel (.xlsx)"}
+				</button>
+			)}
 			{galat && <p className="galat-kolom filter-rekap__galat">{galat}</p>}
 		</form>
 	);

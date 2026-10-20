@@ -16,6 +16,8 @@ import { PulangGuru } from "./pages/PulangGuru";
 import { PulangSiswa } from "./pages/PulangSiswa";
 import { Rekap } from "./pages/Rekap";
 import { RekapGuru } from "./pages/RekapGuru";
+import { SakitKepentingan } from "./pages/SakitKepentingan";
+import { HistoriKetidakhadiran } from "./pages/HistoriKetidakhadiran";
 import { TugasDinas } from "./pages/TugasDinas";
 
 type Keadaan =
@@ -75,6 +77,12 @@ function Halaman({
 		case "/tugasdinas":
 			if (tingkat !== "admin") return beranda;
 			return <TugasDinas />;
+		case "/sakitkepentingan":
+			if (tingkat !== "admin") return beranda;
+			return <SakitKepentingan />;
+		case "/historiketidakhadiran":
+			if (tingkat !== "admin") return beranda;
+			return <HistoriKetidakhadiran />;
 		case "/rekap":
 			if (tingkat !== "admin") return beranda;
 			return <Rekap />;

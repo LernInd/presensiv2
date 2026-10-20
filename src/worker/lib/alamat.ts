@@ -59,7 +59,34 @@ export async function perkiraanAlamat(lat: number, lng: number): Promise<string 
 	}
 }
 
-/** Mencari lalu menyimpan alamat satu baris presensi; gagal → dibiarkan kosong. */
+// Penanda di Cache API (per lokasi data pusat Cloudflare, tanpa tabel/migrasi) agar
+// pencarian alamat tidak membanjiri OSM: (a) titik yang baru gagal tidak dicoba
+// lagi selama 1 jam, (b) isi susulan per lembaga hanya satu eksekusi dalam 30
+// detik — membuka halaman monitoring berulang kali tidak menambah permintaan keluar.
+const TTL_GAGAL_DETIK = 3600;
+const TTL_KUNCI_DETIK = 30;
+
+const penanda = (jenis: string, id: string) => new Request(`https://penanda.presensiv2.invalid/${jenis}/${id}`);
+
+async function adaPenanda(jenis: string, id: string): Promise<boolean> {
+	try {
+		return (await caches.default.match(penanda(jenis, id))) !== undefined;
+	} catch {
+		return false; // cache tak tersedia: lanjut tanpa penanda
+	}
+}
+
+async function pasangPenanda(jenis: string, id: string, detik: number): Promise<void> {
+	try {
+		await caches.default.put(penanda(jenis, id), new Response("1", { headers: { "Cache-Control": `max-age=${detik}` } }));
+	} catch {
+		// abaikan: penanda hanya optimasi
+	}
+}
+
+const idBaris = (k: { tanggal: string; guruId: string; tipe: string }) => `${k.tanggal}/${k.guruId}/${k.tipe}`;
+
+/** Mencari lalu menyimpan alamat satu baris presensi; gagal → dibiarkan kosong (dan ditandai gagal 1 jam). */
 export async function simpanAlamat(
 	env: Env,
 	kunci: { tanggal: string; guruId: string; tipe: string },
@@ -67,7 +94,10 @@ export async function simpanAlamat(
 	lng: number,
 ): Promise<void> {
 	const alamat = await perkiraanAlamat(lat, lng);
-	if (!alamat) return;
+	if (!alamat) {
+		await pasangPenanda("gagal", idBaris(kunci), TTL_GAGAL_DETIK);
+		return;
+	}
 	await env.DB.prepare(
 		"update presensi_gerbang_guru set alamat = ? where tanggal = ? and guru_id = ? and tipe = ? and alamat is null",
 	)
@@ -81,15 +111,24 @@ export async function simpanAlamat(
  * dengan jeda agar tidak melampaui 1 permintaan/detik.
  */
 export async function isiAlamatSusulan(env: Env, lembagaId: string, tanggal: string, batas = 5): Promise<void> {
+	// Satu eksekusi per lembaga dalam 30 detik: muat ulang berulang tidak menambah permintaan keluar.
+	if (await adaPenanda("kunci", lembagaId)) return;
+	await pasangPenanda("kunci", lembagaId, TTL_KUNCI_DETIK);
+
 	const { results } = await env.DB.prepare(
 		`select guru_id, tipe, lat, lng from presensi_gerbang_guru
-		 where lembaga_id = ? and tanggal = ? and alamat is null limit ?`,
+		 where lembaga_id = ? and tanggal = ? and alamat is null limit 20`,
 	)
-		.bind(lembagaId, tanggal, batas)
+		.bind(lembagaId, tanggal)
 		.all<{ guru_id: string; tipe: string; lat: number; lng: number }>();
 
-	for (const [i, baris] of results.entries()) {
-		if (i > 0) await new Promise((selesai) => setTimeout(selesai, JEDA_ANTAR_PERMINTAAN_MS));
-		await simpanAlamat(env, { tanggal, guruId: baris.guru_id, tipe: baris.tipe }, baris.lat, baris.lng);
+	let dicoba = 0;
+	for (const baris of results) {
+		if (dicoba >= batas) break;
+		const kunci = { tanggal, guruId: baris.guru_id, tipe: baris.tipe };
+		if (await adaPenanda("gagal", idBaris(kunci))) continue; // baru gagal: tunggu 1 jam
+		if (dicoba > 0) await new Promise((selesai) => setTimeout(selesai, JEDA_ANTAR_PERMINTAAN_MS));
+		dicoba++;
+		await simpanAlamat(env, kunci, baris.lat, baris.lng);
 	}
 }

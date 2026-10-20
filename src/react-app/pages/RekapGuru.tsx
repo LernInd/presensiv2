@@ -46,7 +46,7 @@ export function RekapGuru() {
 				{pesan && <p className="pesan-sukses">{pesan}</p>}
 				<p className="redup">
 					Presensi yang ditandai tidak valid oleh kepala sekolah tidak menampilkan jamnya (kolom jam
-					dikosongkan, keterangan menyebut mana yang tidak valid). Guru yang sedang tugas dinas ditandai di
+					dikosongkan, keterangan menyebut mana yang tidak valid). Guru yang tugas dinas, sakit, atau ada kepentingan ditandai di
 					kolom keterangan. Berkas tidak memuat foto maupun lokasi.
 				</p>
 			</section>

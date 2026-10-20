@@ -5,6 +5,7 @@ import { urutNamaDepan } from "./monitoringGuru";
 import { ambilPengaturan } from "./pengaturanLembaga";
 import { kodePeranGuruDiLembaga } from "./peran";
 import { hariDariTanggal, semuaTanggal, type Rentang } from "./rekapKehadiran";
+import { labelKetidakhadiran, type Jenis } from "./tugasDinas";
 import { guruDenganPeran } from "./supabase";
 import { hariAktifBerlaku, jamLokal, tanggalLokal } from "./waktu";
 
@@ -39,9 +40,16 @@ type Catatan = { tanggal: string; guru_id: string; guru_nama: string; tipe: "mas
 export function jamDanKeterangan(
 	masuk: Pick<Catatan, "waktu" | "valid"> | undefined,
 	pulang: Pick<Catatan, "waktu" | "valid"> | undefined,
+	/** Label siap pakai ("Tugas dinas: …", "Izin sakit: …"); menimpa scan bila ada. */
 	dinas: string | null,
 	zona: string,
 ): Pick<BarisRekapGuru, "jam_masuk" | "jam_pulang" | "keterangan"> {
+	// Tugas dinas MENIMPA scan: guru yang sedang dinas tidak diwajibkan presensi,
+	// jadi scan yang sempat tercatat (mis. sebelum dinas diinput) tidak dipakai —
+	// jam dikosongkan dan keterangan menjadi tugas dinas. Baris scan tidak
+	// dihapus (rekap pulih bila dinas dibatalkan).
+	if (dinas) return { jam_masuk: null, jam_pulang: null, keterangan: dinas };
+
 	const masukValid = masuk?.valid === 1;
 	const pulangValid = pulang?.valid === 1;
 	const masukInvalid = masuk !== undefined && !masukValid;
@@ -51,7 +59,7 @@ export function jamDanKeterangan(
 	if (masukInvalid && pulangInvalid) keterangan = "Presensi masuk dan pulang tidak valid";
 	else if (masukInvalid) keterangan = "Presensi masuk tidak valid";
 	else if (pulangInvalid) keterangan = "Presensi pulang tidak valid";
-	else if (!masuk && !pulang) keterangan = dinas ? `Tugas dinas: ${dinas}` : "Belum presensi";
+	else if (!masuk && !pulang) keterangan = "Belum presensi";
 	else if (masuk && !pulang) keterangan = "Hadir (belum presensi pulang)";
 	else keterangan = "Hadir";
 
@@ -96,11 +104,11 @@ export async function rekapKehadiranGuru(
 			.bind(lembagaId, rentang.dari, rentang.sampai)
 			.all<Catatan>(),
 		env.DB.prepare(
-			`select guru_id, guru_nama, mulai, sampai, keterangan from tugas_dinas
+			`select guru_id, guru_nama, jenis, mulai, sampai, keterangan from tugas_dinas
 			 where lembaga_id = ? and mulai <= ? and sampai >= ?`,
 		)
 			.bind(lembagaId, rentang.sampai, rentang.dari)
-			.all<{ guru_id: string; guru_nama: string; mulai: string; sampai: string; keterangan: string }>(),
+			.all<{ guru_id: string; guru_nama: string; jenis: Jenis; mulai: string; sampai: string; keterangan: string }>(),
 	]);
 
 	// Satu guru bisa memegang beberapa peran → satu baris per orang; guru yang punya
@@ -118,7 +126,8 @@ export async function rekapKehadiranGuru(
 	const baris: BarisRekapGuru[] = [];
 	for (const t of tanggalAktif) {
 		for (const [id, guruNama] of guru) {
-			const ketDinas = dinas.results.find((d) => d.guru_id === id && d.mulai <= t && d.sampai >= t)?.keterangan ?? null;
+			const izin = dinas.results.find((d) => d.guru_id === id && d.mulai <= t && d.sampai >= t);
+			const ketDinas = izin ? labelKetidakhadiran(izin.jenis, izin.keterangan) : null;
 			baris.push({
 				tanggal: t,
 				guru_id: id,
